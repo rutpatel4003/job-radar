@@ -485,7 +485,11 @@ h1b_aliases:
 
 runtime:
   # Tuned for GitHub Pro with a run every 3 hours: ~10–11.5 min per run × 8/day ≈ 2,600 of 3,000 min/month.
-  time_budget_minutes: 10   # browser work and re-checks stop when the run reaches this length
+  time_budget_minutes: 10   # everything optional stops when the run reaches this length (+~2 min setup/commit)
+  fetch_budget_minutes: 5   # stop waiting for slow job boards after this (they're retried next run)
+  board_budget_seconds: 60  # a single Workday/Oracle/Eightfold board stops paging after this
+  search_board_rotation: 2  # non-priority Workday/Oracle/Eightfold boards are scanned every 2nd run (6 h)
+  api_backfill: 800         # jobs missing a description, filled via job-board APIs per run
   career_pages_every_n_runs: 1   # set 2 to scan Google/Meta/Apple… every 6 h instead (saves ~500 min/month)
   workers: 32               # parallel requests
   detail_workers: 24

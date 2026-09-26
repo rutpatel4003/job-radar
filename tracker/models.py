@@ -30,3 +30,4 @@ class FetchResult:
     not_found: bool = False
     error: str = ""
     closed_uids: set = field(default_factory=set)  # explicit "this job is closed" signals
+    elapsed: float = 0.0

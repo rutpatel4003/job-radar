@@ -2,8 +2,8 @@ name: Job tracker (every 3 hours)
 
 # One run = job boards + community lists + aggregators + career sites (headless browser)
 #         + browser descriptions for big-tech jobs + daily re-check of partial-feed postings.
-# ≈ 10–12 min per run × 8 runs/day ≈ 2,700 min/month → fits GitHub Pro's 3,000.
-# The run stops optional extras at runtime.time_budget_minutes (config.yaml), so it can't overrun.
+# Each run is capped at runtime.time_budget_minutes (10) + ~2 min setup → ≤ ~12 min × 8/day.
+# The first day's runs use the full budget (big backlog); later runs are usually shorter.
 on:
   schedule:
     - cron: "7 */3 * * *"        # 00:07, 03:07 … 21:07 UTC (= 5pm, 8pm, 11pm, 2am, 5am, 8am, 11am, 2pm Pacific)
@@ -33,6 +33,7 @@ jobs:
       ADZUNA_APP_ID: ${{ secrets.ADZUNA_APP_ID }}
       ADZUNA_APP_KEY: ${{ secrets.ADZUNA_APP_KEY }}
       DASHBOARD_URL: ${{ vars.DASHBOARD_URL }}
+      PYTHONUNBUFFERED: "1"          # show the log live instead of all at the end
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6

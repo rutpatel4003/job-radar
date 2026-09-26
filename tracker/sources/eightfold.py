@@ -35,6 +35,8 @@ def fetch(c, cfg):
     for q in queries:
         start = 0
         while start < cap:
+            if c.get('_deadline') and __import__('time').time() > c['_deadline']:
+                break
             pos, count = _positions(c, q, start)
             for p in pos:
                 found.setdefault(str(p.get("id")), p)

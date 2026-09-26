@@ -58,6 +58,8 @@ def fetch(c, cfg):
     for q in queries:
         offset = 0
         while offset < cap:
+            if c.get('_deadline') and __import__('time').time() > c['_deadline']:
+                break
             try:
                 data = post_json(base + "/jobs", {"appliedFacets": {}, "limit": 20,
                                                   "offset": offset, "searchText": q})

@@ -32,7 +32,7 @@ def _check(r):
     r.raise_for_status()
 
 
-def get_json(url, timeout=25, **kw):
+def get_json(url, timeout=(8, 20), **kw):
     r = SESSION.get(url, timeout=timeout, **kw)
     _check(r)
     return r.json()
@@ -44,7 +44,7 @@ def get_text(url, timeout=60, **kw):
     return r.text
 
 
-def post_json(url, payload, timeout=25, **kw):
+def post_json(url, payload, timeout=(8, 20), **kw):
     r = SESSION.post(url, json=payload, timeout=timeout,
                      headers={"Content-Type": "application/json"}, **kw)
     _check(r)

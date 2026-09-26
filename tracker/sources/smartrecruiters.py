@@ -13,6 +13,8 @@ def fetch(c, cfg):
     token = c["token"]
     jobs, offset = [], 0
     while offset < 1000:
+        if c.get('_deadline') and __import__('time').time() > c['_deadline']:
+            break
         data = get_json(API.format(token=token) + f"?country=us&limit=100&offset={offset}")
         items = data.get("content") or []
         for p in items:

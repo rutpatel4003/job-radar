@@ -19,6 +19,8 @@ concurrency:
 
 jobs:
   h1b:
+    env:
+      PYTHONUNBUFFERED: "1"
     runs-on: ubuntu-24.04   # pinned: Playwright's system deps target 24.04
     timeout-minutes: 60
     steps:

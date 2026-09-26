@@ -1,8 +1,11 @@
 """Hourly run:  python -m tracker.run  [--dry-run] [--no-notify] [--only waymo,scaleai]"""
 import argparse
 import json
+import os
 import re
+import sys
 import time
+from concurrent.futures import TimeoutError as FuturesTimeout
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 
@@ -12,6 +15,7 @@ from .filters import (ResumeMatcher, TitleFilter, analyze_description, classify_
                       location_status, norm_company)
 from .h1b import H1B
 from .notify import notify
+from .ids import board_key
 from .sources import detail_from_url, fetch_board
 from .sources.aggregators import fetch_all as fetch_aggregators
 from .sources.community import fetch_markdown_list, fetch_simplify
@@ -24,6 +28,30 @@ from .store import Store
 
 DATA = ROOT / "data"
 CLEARANCE_TITLE = re.compile(r"ts/sci|clearance|\bsecret\b|polygraph|u\.?s\.? citizen|\bus person", re.I)
+
+
+def run_pool(tasks, workers, budget_s, label):
+    """Run (key, fn) tasks in parallel but stop waiting after budget_s seconds.
+    Returns (results, unfinished_keys). Stragglers are abandoned (process exits with os._exit)."""
+    ex = ThreadPoolExecutor(max_workers=workers)
+    futs = {ex.submit(fn): key for key, fn in tasks}
+    out, t_start, last = [], time.time(), time.time()
+    try:
+        for f in as_completed(futs, timeout=max(5.0, budget_s)):
+            try:
+                out.append(f.result())
+            except Exception as e:
+                print(f"  {label} task {futs[f]} crashed: {type(e).__name__}: {e}")
+            if time.time() - last > 30:
+                last = time.time()
+                print(f"  … {label}: {len(out)}/{len(futs)} done after {time.time() - t_start:.0f}s")
+    except FuturesTimeout:
+        pass
+    unfinished = [k for f, k in futs.items() if not f.done()]
+    ex.shutdown(wait=False, cancel_futures=True)
+    if unfinished:
+        print(f"  {label}: time budget reached, {len(unfinished)} tasks deferred to the next run")
+    return out, unfinished
 
 
 def now_iso():
@@ -60,6 +88,10 @@ def main():
     ap.add_argument("--pages-only", action="store_true", help="only scan headless-browser career pages")
     args = ap.parse_args()
 
+    try:
+        sys.stdout.reconfigure(line_buffering=True)
+    except Exception:
+        pass
     t0 = time.time()
     cfg = load_config()
     tf = TitleFilter(cfg)
@@ -74,27 +106,44 @@ def main():
     dead = dict(state.get("dead_boards", {}))
     first_ever = store.is_empty()
     now = now_iso()
-    workers = cfg.get("runtime", {}).get("workers", 24)
 
-    # ── 1. Fetch everything in parallel ──
-    results = []
-    if args.pages_only:
-        companies_to_fetch = []
-    else:
-        companies_to_fetch = companies
-    with ThreadPoolExecutor(max_workers=workers) as ex:
-        futs = [ex.submit(fetch_board, c, cfg) for c in companies_to_fetch]
-        cl = cfg.get("community_lists", {})
-        if not args.only and not args.pages_only:
-            for u in cl.get("json", []):
-                futs.append(ex.submit(fetch_simplify, u, cl.get("max_age_days", 120)))
-            for u in cl.get("markdown", []):
-                futs.append(ex.submit(fetch_markdown_list, u))
-            futs.append(ex.submit(fetch_aggregators, cfg))
-        for f in as_completed(futs):
-            r = f.result()
-            results.extend(r if isinstance(r, list) else [r])
+    # ── 1. Fetch everything in parallel (time-boxed) ──
     rt = cfg.get("runtime", {})
+    prio = [norm_company(p) for p in cfg.get("priority_companies") or [] if norm_company(p)]
+    is_prio = lambda name: any(norm_company(name).startswith(p) for p in prio)
+    SEARCH_ATS = ("workday", "oracle", "eightfold")
+    slot = (datetime.now(timezone.utc).hour // 3) % 8
+    rot = max(1, int(rt.get("search_board_rotation", 2)))
+    results = []
+    tasks = []
+    if not args.only and not args.pages_only:
+        cl = cfg.get("community_lists", {})
+        for u in cl.get("json", []):
+            tasks.append((u, lambda u=u: fetch_simplify(u, cl.get("max_age_days", 120))))
+        for u in cl.get("markdown", []):
+            tasks.append((u, lambda u=u: fetch_markdown_list(u)))
+        tasks.append(("aggregators", lambda: fetch_aggregators(cfg)))
+    if not args.pages_only:
+        # cheap full-list boards first, then search-based ones; priority companies before the rest.
+        # Non-priority search boards (Workday/Oracle/Eightfold) are split across runs (each every `rot` runs).
+        def order(c):
+            return (c["ats"] in SEARCH_ATS, not is_prio(c.get("name", "")))
+        skipped = 0
+        for c in sorted(companies, key=order):
+            if c["ats"] in SEARCH_ATS and not is_prio(c.get("name", "")) and not args.only \
+                    and crc32(board_key(c).encode()) % rot != slot % rot:
+                skipped += 1
+                continue
+            tasks.append((board_key(c), lambda c=c: fetch_board(c, cfg)))
+        if skipped:
+            print(f"[fetch] {skipped} non-priority Workday/Oracle/Eightfold boards rotate to the next run")
+    fetched, unfinished = run_pool(tasks, rt.get("workers", 32),
+                                   float(rt.get("fetch_budget_minutes", 6)) * 60, "fetch")
+    for r in fetched:
+        results.extend(r if isinstance(r, list) else [r])
+    slow = sorted((r for r in results if getattr(r, "elapsed", 0)), key=lambda r: -r.elapsed)[:5]
+    if slow:
+        print("  slowest feeds: " + ", ".join(f"{r.board} {r.elapsed:.0f}s" for r in slow))
     deadline = t0 + float(rt.get("time_budget_minutes", 10)) * 60
     pages = [p for p in cfg.get("career_pages") or [] if p.get("enabled", True)]
     every = max(1, int(rt.get("career_pages_every_n_runs", 1)))
@@ -105,7 +154,7 @@ def main():
         results.extend(fetch_pages(pages, lambda uid, url: store.find(uid, url) is not None,
                                    rt.get("career_page_details", 25),
                                    wanted=lambda title: tf.evaluate(title)[0], deadline=deadline - 180))
-        print(f"[pages] {len(pages)} career sites in {time.time() - tp:.0f}s")
+        print(f"[pages] {len(pages)} career sites in {time.time() - tp:.0f}s", flush=True)
     # ATS boards first so their richer data becomes the primary record; community lists after.
     results.sort(key=lambda r: (r.board.startswith(("community:", "aggregator:")), r.board.startswith("page:")))
 
@@ -186,8 +235,6 @@ def main():
             pending_fp[fp] = job.uid
 
     use_browser = bool(pages) and not args.only and not args.skip_pages
-    prio = [norm_company(p) for p in cfg.get("priority_companies") or [] if norm_company(p)]
-    is_prio = lambda name: any(norm_company(name).startswith(p) for p in prio)
 
     # ── 3. Fetch descriptions for genuinely new jobs (sponsorship / years / PhD) ──
     def enrich(item):
@@ -205,8 +252,13 @@ def main():
                 item["detail_error"] = type(e).__name__
         return item
 
-    with ThreadPoolExecutor(max_workers=cfg.get("runtime", {}).get("detail_workers", 16)) as ex:
-        list(ex.map(enrich, pending.values()))
+    seed_hours = cfg.get("notifications", {}).get("seed_notify_hours", 48)
+    urgent = [i for i in pending.values() if not i["seed"] or recent(i["job"].posted_at, seed_hours)]
+    later = len(pending) - len(urgent)
+    if later:
+        print(f"[details] {later} older jobs from newly added boards: descriptions back-filled over the next runs")
+    run_pool([(i["job"].uid, lambda i=i: enrich(i)) for i in urgent], rt.get("detail_workers", 24),
+             max(60.0, deadline - 240 - time.time()), "details")
 
     derr = [i for i in pending.values() if i.get("detail_error")]
     if derr:
@@ -215,7 +267,7 @@ def main():
     # 3b. Jobs with no API description (Google/Apple/Microsoft/TikTok links from community lists, custom sites):
     #     open the posting in the headless browser so sponsorship / start date / match can still be checked.
     if use_browser:
-        need = [i for i in pending.values() if len((i["job"].description or "").strip()) < 200]
+        need = [i for i in urgent if len((i["job"].description or "").strip()) < 200]
         need.sort(key=lambda i: (not is_prio(i["job"].company), "newgrad" not in i["tags"]))
         need = need[: int(rt.get("browser_descriptions", 80))]
         if need:
@@ -357,8 +409,10 @@ def main():
             except Exception:
                 return rec, None
 
-        with ThreadPoolExecutor(max_workers=rt.get("detail_workers", 16)) as ex:
-            for rec, alive in ex.map(check, cands):
+        checked, _ = run_pool([(r["uid"], lambda r=r: check(r)) for r in cands], rt.get("detail_workers", 24),
+                              max(10.0, deadline - 90 - time.time()), "re-check")
+        if True:
+            for rec, alive in checked:
                 if alive is None:
                     continue
                 rechecked += 1
@@ -371,10 +425,46 @@ def main():
         print(f"[recheck] {rechecked} postings re-checked, {gone} found closed")
         closed += gone
 
-    # ── 4c. Older jobs still missing a description: fill in with the browser while time remains ──
+    # ── 4c. Jobs still missing a description (e.g. the first run's backlog) ──
+    #   first through the job board's own API (cheap), then with the browser while time remains
+    if not args.only and not args.dry_run and time.time() < deadline - 60:
+        todo = [r for r in store.jobs.values()
+                if r["status"] == "open" and not r.get("hidden") and not r.get("has_desc")
+                and not r.get("api_tried") and r["uid"] not in pending]
+        todo.sort(key=lambda r: (not r.get("priority"), r["first_seen"]))
+        todo = todo[: int(rt.get("api_backfill", 800))]
+
+        def api_fill(rec):
+            f = detail_from_url(rec["url"])
+            if not f:
+                return rec, "none"
+            try:
+                return rec, f()
+            except NotFound:
+                return rec, "gone"
+            except Exception:
+                return rec, None
+
+        done, _ = run_pool([(r["uid"], lambda r=r: api_fill(r)) for r in todo], rt.get("detail_workers", 24),
+                           max(10.0, deadline - 60 - time.time()), "api back-fill")
+        filled = 0
+        for rec, d in done:
+            if d is None:
+                continue                                   # transient error: try again next run
+            rec["api_tried"] = True
+            store.dirty = True
+            if d == "gone":
+                store.missed(rec, now)
+            elif isinstance(d, dict) and len(d.get("description") or "") > 200:
+                reanalyze(rec, d["description"], matcher, (grad, earliest), cfg)
+                filled += 1
+        if todo:
+            print(f"[back-fill] {filled} descriptions via job-board APIs ({len(todo)} tried)")
+
     if use_browser and time.time() < deadline - 90:
         old_need = [r for r in store.jobs.values()
-                    if r["status"] == "open" and not r.get("hidden") and not r.get("has_desc") and not r.get("desc_tried")]
+                    if r["status"] == "open" and not r.get("hidden") and not r.get("has_desc")
+                    and not r.get("desc_tried") and (r.get("api_tried") or not detail_from_url(r["url"]))]
         old_need.sort(key=lambda r: (not r.get("priority"), r["first_seen"]), reverse=False)
         old_need = old_need[: int(rt.get("browser_backfill", 60))]
         if old_need:
@@ -460,3 +550,6 @@ def notify_text(text, dash):
 
 if __name__ == "__main__":
     main()
+    print("[done]", flush=True)
+    sys.stdout.flush()
+    os._exit(0)          # don't wait for abandoned network threads (they're past their time budget)

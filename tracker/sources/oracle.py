@@ -29,6 +29,8 @@ def fetch(c, cfg):
     for q in queries:
         offset = 0
         while offset < cap:
+            if c.get('_deadline') and __import__('time').time() > c['_deadline']:
+                break
             finder = (f"findReqs;siteNumber={c['site']},facetsList=LOCATIONS,limit=25,"
                       f"keyword=\"{q}\",sortBy=POSTING_DATES_DESC,offset={offset}")
             data = get_json(f"{_base(c)}/recruitingCEJobRequisitions?onlyData=true"

@@ -21,6 +21,15 @@ ADAPTERS = {
 
 
 def fetch_board(company, cfg):
+    import time
+    t = time.time()
+    company = dict(company, _deadline=t + float((cfg.get("runtime") or {}).get("board_budget_seconds", 60)))
+    res = _fetch_board(company, cfg)
+    res.elapsed = time.time() - t
+    return res
+
+
+def _fetch_board(company, cfg):
     key = board_key(company)
     mod = ADAPTERS.get(company["ats"])
     if not mod:

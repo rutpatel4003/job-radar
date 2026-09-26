@@ -22,8 +22,14 @@ from .filters import norm_company
 from .http import SESSION
 
 PAGE = "https://www.dol.gov/agencies/eta/foreign-labor/performance"
-FILE = "https://www.dol.gov/sites/dolgov/files/ETA/oflc/pdfs/LCA_Disclosure_Data_FY{fy}_Q{q}.xlsx"
-LINK = re.compile(r'(?:href="|/)([^"\s]*LCA_Disclosure_Data_FY(\d{4})_Q(\d)[^"\s]*\.xlsx)', re.I)
+# dol.gov's FY2026 file is published with a typo ("Dislclosure"), so both spellings are tried.
+FILES = ["https://www.dol.gov/sites/dolgov/files/ETA/oflc/pdfs/LCA_Disclosure_Data_FY{fy}_Q{q}.xlsx",
+         "https://www.dol.gov/sites/dolgov/files/ETA/oflc/pdfs/LCA_Dislclosure_Data_FY{fy}_Q{q}.xlsx"]
+LINK = re.compile(r'(?:href="|/)([^"\s]*LCA_Dis\w*_Data_FY(\d{4})_Q(\d)[^"\s]*\.xlsx)', re.I)
+
+
+class Blocked(Exception):
+    """dol.gov refuses this machine (it blocks many cloud servers, including GitHub's)."""
 
 
 class Getter:
@@ -41,19 +47,25 @@ class Getter:
             self.ctx.new_page().goto("https://www.dol.gov/", timeout=60_000)   # pick up cookies
         return self.ctx
 
-    def exists(self, url):
+    def status(self, url):
+        """HTTP status for a tiny ranged GET (some servers reject HEAD)."""
+        rng = {"Range": "bytes=0-1023"}
         if self.ctx is None:
             try:
-                r = SESSION.head(url, timeout=30, allow_redirects=True)
-                if r.status_code == 200:
-                    return True
-                if r.status_code == 404:
-                    return False
-                print(f"  dol.gov answered {r.status_code} to a script; switching to headless browser")
+                with SESSION.get(url, headers=rng, stream=True, timeout=30) as r:
+                    if r.status_code in (200, 206, 404):
+                        return r.status_code
+                    print(f"  dol.gov answered {r.status_code} to a script; switching to headless browser")
             except Exception as e:
-                print(f"  HEAD failed ({type(e).__name__}); switching to headless browser")
-        r = self._browser().request.head(url, timeout=60_000)
-        return r.ok
+                print(f"  request failed ({type(e).__name__}); switching to headless browser")
+        try:
+            return self._browser().request.get(url, headers=rng, timeout=60_000).status
+        except Exception as e:
+            print(f"  browser request failed: {type(e).__name__}")
+            return 0
+
+    def exists(self, url):
+        return self.status(url) in (200, 206)
 
     def download(self, url, path):
         if self.ctx is None:
@@ -89,7 +101,7 @@ def latest_files(getter, n=2):
             found.setdefault(int(fy), {})[int(q)] = url
     except Exception:
         pass
-    out = []
+    out, blocked = [], []
     for fy in range(fy_now, fy_now - 4, -1):        # 2) otherwise try the standard file names
         if len(out) >= n:
             break
@@ -97,13 +109,24 @@ def latest_files(getter, n=2):
             q = max(found[fy])
             out.append((fy, q, found[fy][q]))
             continue
+        hit = None
         for q in (4, 3, 2, 1):
-            url = FILE.format(fy=fy, q=q)
-            ok = getter.exists(url)
-            print(f"  FY{fy} Q{q}: {'found' if ok else 'not published'}")
-            if ok:
-                out.append((fy, q, url))
+            for pattern in FILES:
+                url = pattern.format(fy=fy, q=q)
+                code = getter.status(url)
+                print(f"  {url.rsplit('/', 1)[-1]}: HTTP {code} "
+                      + {200: "found", 206: "found", 404: "not published"}.get(code, "BLOCKED"))
+                if code in (200, 206):
+                    hit = (fy, q, url)
+                    break
+                if code != 404:
+                    blocked.append(code)
+            if hit or len(blocked) >= 4:
                 break
+        if hit:
+            out.append(hit)
+        if len(blocked) >= 4:
+            raise Blocked(blocked[0])
     return out
 
 
@@ -142,28 +165,90 @@ def aggregate(path, agg, names):
     return n
 
 
-def main():
-    getter = Getter()
+HOWTO = """dol.gov is blocking this machine (it blocks many cloud servers, including GitHub Actions).
+Do this instead, about once a quarter (~5 minutes):
+  A) On your laptop, inside the repo:
+       pip install requests PyYAML openpyxl playwright && python -m playwright install chromium
+       python -m tracker.h1b
+       git add data/h1b.json && git commit -m "h1b data" && git push
+  B) If that is blocked too: download the newest 'LCA Programs (H-1B, H-1B1, E-3)' .xlsx file(s) from
+     https://www.dol.gov/agencies/eta/foreign-labor/performance (Disclosure Data tab) in your browser, then:
+       python -m tracker.h1b --files ~/Downloads/LCA_Dislclosure_Data_FY2026_Q3.xlsx
+       git add data/h1b.json && git commit -m "h1b data" && git push
+The job tracker keeps working meanwhile; sponsorship then comes only from job descriptions."""
+
+
+def remind():
+    """Telegram nudge when the automatic download is blocked."""
     try:
-        files = latest_files(getter, int(sys.argv[1]) if len(sys.argv) > 1 else 2)
-        if not files:
-            print("Couldn't find any LCA disclosure file on dol.gov. The tracker still works without it;\n"
-                  "sponsorship then comes only from job descriptions. Try again later.")
+        from .notify import send_telegram
+        send_telegram(["<b>H-1B data refresh needs you (≈5 min)</b>\ndol.gov blocks GitHub's servers. "
+                       "On your laptop in the repo run:\n<code>python -m tracker.h1b</code>\nthen commit + push "
+                       "<code>data/h1b.json</code>. Details in the workflow log / README."])
+    except Exception:
+        pass
+
+
+def main():
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--files", nargs="*", help="already-downloaded LCA_Disclosure_Data_*.xlsx files")
+    ap.add_argument("--url", nargs="*", help="direct link(s) to LCA disclosure .xlsx file(s)")
+    ap.add_argument("--years", type=int, default=2, help="how many fiscal years to combine (default 2)")
+    args = ap.parse_args()
+
+    agg = defaultdict(lambda: [0, 0, 0])
+    names = {}
+    sources = []
+    if args.files:
+        for f in args.files:
+            print(f"Parsing {f}…", flush=True)
+            print(f"  parsed {aggregate(os.path.expanduser(f), agg, names):,} rows", flush=True)
+            m = re.search(r"FY(\d{4})_Q(\d)", f)
+            sources.append(f"FY{m.group(1)} Q{m.group(2)}" if m else os.path.basename(f))
+    else:
+        getter = Getter()
+        try:
+            urls = [u for u in (args.url or []) if u.strip()]
+            if urls:
+                files = [(0, 0, u) for u in urls]
+            else:
+                files = latest_files(getter, args.years)
+            if not files:
+                print("No LCA disclosure files were found under the usual names.\n"
+                      "Paste the direct link from the dol.gov page with --url (or the workflow's URL box).")
+                sys.exit(1)
+            for fy, q, url in files:
+                print(f"Downloading {url}", flush=True)
+                with tempfile.NamedTemporaryFile(suffix=".xlsx") as tmp:
+                    getter.download(url, tmp.name)
+                    print(f"  {os.path.getsize(tmp.name) / 1e6:.0f} MB, parsing…", flush=True)
+                    print(f"  parsed {aggregate(tmp.name, agg, names):,} rows", flush=True)
+                m = re.search(r"FY(\d{4})_Q(\d)", url)
+                sources.append(f"FY{m.group(1)} Q{m.group(2)}" if m else url.rsplit("/", 1)[-1])
+        except Blocked as e:
+            if not os.environ.get("GITHUB_ACTIONS"):
+                print(f"""
+BLOCKED (HTTP {e}): dol.gov refuses automated downloads from this network too.
+Download the file(s) in your normal browser instead (2 minutes):
+  1. Open https://www.dol.gov/agencies/eta/foreign-labor/performance → "Disclosure Data" tab
+  2. Under "LCA Programs (H-1B, H-1B1, E-3)" download the newest FY .xlsx (optionally last year's too)
+  3. Run (WSL sees Windows downloads under /mnt/c/Users/<you>/Downloads):
+       python -m tracker.h1b --files /mnt/c/Users/<you>/Downloads/LCA_Dislclosure_Data_FY2026_Q3.xlsx
+       git add data/h1b.json && git commit -m "h1b data" && git push""")
+                sys.exit(1)
+            print(f"\nBLOCKED (HTTP {e}).\n{HOWTO}")
+            if os.environ.get("GITHUB_ACTIONS"):
+                print("::warning title=H-1B data needs a manual refresh::dol.gov blocks GitHub's servers. "
+                      "Run `python -m tracker.h1b` on your laptop and push data/h1b.json (see README).")
+                remind()
+                sys.exit(0)          # not a failure of your tracker — just needs the laptop step
             sys.exit(1)
-        agg = defaultdict(lambda: [0, 0, 0])
-        names = {}
-        for fy, q, url in files:
-            print(f"Downloading FY{fy} Q{q}: {url}", flush=True)
-            with tempfile.NamedTemporaryFile(suffix=".xlsx") as tmp:
-                getter.download(url, tmp.name)
-                print(f"  {os.path.getsize(tmp.name) / 1e6:.0f} MB, parsing…", flush=True)
-                print(f"  parsed {aggregate(tmp.name, agg, names):,} rows", flush=True)
-    finally:
-        getter.close()
+        finally:
+            getter.close()
     out = {k: [v[0], v[1], v[2], names.get(k, k)] for k, v in agg.items() if v[0] > 0 or v[2] >= 5}
-    meta = {"_source": [f"FY{fy} Q{q}" for fy, q, _ in files]}
-    (ROOT / "data" / "h1b.json").write_text(json.dumps({**meta, **out}, separators=(",", ":"), sort_keys=True))
-    print(f"Wrote {len(out):,} employers to data/h1b.json")
+    (ROOT / "data" / "h1b.json").write_text(json.dumps({"_source": sources, **out}, separators=(",", ":"), sort_keys=True))
+    print(f"Wrote {len(out):,} employers to data/h1b.json  (sources: {', '.join(sources)})")
 
 
 class H1B:

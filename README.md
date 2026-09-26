@@ -203,6 +203,15 @@ Pro plans can run 5 Claude Code routines a day, which is too few for the scans t
 ## Honest limitations
 
 - **The Oracle (JPMorgan, Goldman lateral, AmEx) and Eightfold (Microsoft, Qualcomm, Netflix) readers are experimental.** They use those sites' public JSON endpoints, which couldn't be tested from the build environment. If the run log shows them failing, the career-page watcher and community lists still cover those companies.
+- **H-1B data may need your laptop once a quarter.** The Department of Labor blocks many cloud servers, including GitHub's. When that happens, the quarterly workflow doesn't fail; it sends you a Telegram reminder. Then, in the repo on your laptop:
+
+  ```bash
+  pip install requests PyYAML openpyxl playwright && python -m playwright install chromium
+  python -m tracker.h1b
+  git add data/h1b.json && git commit -m "h1b data" && git push
+  ```
+
+  If your laptop is blocked too, download the newest LCA (H-1B) `.xlsx` from the Disclosure Data tab of dol.gov's Performance Data page and run `python -m tracker.h1b --files <path to the file>`. Everything else keeps working in the meantime; sponsorship then comes only from job descriptions.
 - **Workday, Oracle, and custom career sites are searched, not fully listed.** They catch new postings that match your queries. Closed postings are caught by the daily re-check, not instantly.
 - **Career-page patterns may need tuning.** They were written without being able to load those sites from the build environment. Run the `--test` command once after setup.
 - **A few sites block headless browsers** (Tesla most of the time). Jobs from those sites keep "no description captured" and rely on H-1B history for the sponsorship signal.

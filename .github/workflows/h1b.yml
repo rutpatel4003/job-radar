@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: "0 10 5 1,4,7,10 *"  # quarterly — the Dept. of Labor publishes new data each quarter
   workflow_dispatch:
+    inputs:
+      urls:
+        description: "Optional: direct link(s) to LCA .xlsx files from dol.gov (space-separated)"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -24,7 +29,13 @@ jobs:
           cache: pip
       - run: pip install -q requests PyYAML openpyxl playwright
       - run: python -m playwright install --with-deps chromium   # fallback if dol.gov blocks plain scripts
-      - run: python -m tracker.h1b
+      - name: Build H-1B history
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          URLS: ${{ inputs.urls }}
+        run: |
+          if [ -n "$URLS" ]; then python -m tracker.h1b --url $URLS; else python -m tracker.h1b; fi
       - name: Save
         run: |
           git config user.name "job-tracker-bot"

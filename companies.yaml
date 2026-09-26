@@ -1,0 +1,185 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Your company list. Most companies are found automatically (data/companies.json is rebuilt weekly
+# from community job lists). Use this file for anything extra.
+#
+#   - Just a name          → weekly discovery finds its Greenhouse / Ashby / Lever board by name
+#   - name + url           → paste ANY job link from their careers site; the platform is auto-detected
+#   - name + ats + token   → fully explicit
+# Companies with custom career sites (Google, Meta, Apple…) are handled by career_pages in config.yaml.
+# ─────────────────────────────────────────────────────────────────────────────
+companies:
+  # Explicit / special boards
+  - {name: Amazon, ats: amazon}
+  - {name: OpenAI, ats: ashby, token: openai}
+  - {name: Anthropic, ats: greenhouse, token: anthropic}
+  - {name: Hayden AI, ats: ashby, token: haydenai}
+  - {name: Solace Health, ats: ashby, token: solace}
+  - {name: Zoox, ats: lever, token: zoox}
+  - {name: Applied Intuition, ats: ashby, token: applied}
+  - {name: Scale AI, ats: greenhouse, token: scaleai}
+  - {name: Anduril, ats: greenhouse, token: andurilindustries}
+  - {name: Figure AI, ats: greenhouse, token: figureai}
+  - {name: Verkada, ats: greenhouse, token: verkada}
+  - {name: Skydio, ats: ashby, token: skydio}
+  - {name: Perplexity, ats: ashby, token: perplexity}
+  - {name: Google DeepMind, ats: greenhouse, token: deepmind}
+  - {name: NVIDIA, ats: workday, host: nvidia.wd5.myworkdayjobs.com, tenant: nvidia, site: NVIDIAExternalCareerSite}
+  - {name: Adobe, ats: workday, host: adobe.wd5.myworkdayjobs.com, tenant: adobe, site: external_experienced}
+  - {name: Salesforce, ats: workday, host: salesforce.wd12.myworkdayjobs.com, tenant: salesforce, site: External_Career_Site}
+  - {name: Salesforce New Grad, ats: workday, host: salesforce.wd12.myworkdayjobs.com, tenant: salesforce, site: Futureforce_NewGradRoles}
+
+  # Big tech / AI labs on standard platforms
+  - {name: SpaceX, ats: greenhouse, token: spacex}
+  - {name: xAI, ats: greenhouse, token: xai}
+  - {name: Stripe, ats: greenhouse, token: stripe}
+  - {name: Databricks, ats: greenhouse, token: databricks}
+  - {name: Waymo, ats: greenhouse, token: waymo}
+  - {name: Airbnb, ats: greenhouse, token: airbnb}
+  - {name: Pinterest, ats: greenhouse, token: pinterest}
+  - {name: Roblox, ats: greenhouse, token: roblox}
+  - {name: Coinbase, ats: greenhouse, token: coinbase}
+  - {name: Palantir, ats: lever, token: palantir}
+  - {name: Anysphere (Cursor), ats: ashby, token: cursor}
+  - {name: Notion, ats: ashby, token: notion}
+  - {name: Ramp, ats: ashby, token: ramp}
+  - {name: Jane Street, ats: greenhouse, token: janestreet}
+  - {name: Morgan Stanley, ats: workday, host: ms.wd5.myworkdayjobs.com, tenant: ms, site: External}
+  - {name: Capital One, ats: workday, host: capitalone.wd12.myworkdayjobs.com, tenant: capitalone, site: Capital_One}
+  - {name: Intel, ats: workday, host: intel.wd1.myworkdayjobs.com, tenant: intel, site: External}
+
+  # Eightfold career sites (EXPERIMENTAL API; the same sites are also watched in career_pages)
+  - {name: Microsoft, ats: eightfold, host: apply.careers.microsoft.com, domain: microsoft.com}
+  - {name: Qualcomm, ats: eightfold, host: qualcomm.eightfold.ai, domain: qualcomm.com}
+  - {name: Netflix, ats: eightfold, host: explore.jobs.netflix.net, domain: netflix.com}
+  - {name: American Express, ats: eightfold, host: aexp.eightfold.ai, domain: aexp.com}
+
+  # Banks / finance on Oracle Recruiting Cloud & Workday — pasted job links, platform auto-detected
+  - {name: JPMorgan Chase, url: "https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/job/210706739"}
+  - {name: Goldman Sachs, url: "https://hdpc.fa.us2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/LateralHiring/job/1"}
+  - {name: Oracle, url: "https://eeho.fa.us2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_45001/job/325063"}
+  - {name: BNY, url: "https://eofe.fa.us2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/job/73163"}
+  - {name: Texas Instruments, url: "https://edbz.fa.us2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX/job/25010233"}
+  - {name: Bank of America, url: "https://ghr.wd1.myworkdayjobs.com/us-emplsv/job/Plano/Client-Quantitative-Analyst-I_25045539-1"}
+
+  # Names only — discovery looks these up (autonomy / robotics / computer vision / AI labs & infra)
+  - Waymo
+  - Nuro
+  - Aurora Innovation
+  - Motional
+  - Kodiak Robotics
+  - Gatik
+  - Waabi
+  - Wayve
+  - May Mobility
+  - Torc Robotics
+  - Stack AV
+  - Plus
+  - Serve Robotics
+  - Zipline
+  - Shield AI
+  - Samsara
+  - Matterport
+  - Niantic
+  - Physical Intelligence
+  - Skild AI
+  - 1X Technologies
+  - Agility Robotics
+  - Boston Dynamics
+  - Dexterity
+  - Standard Bots
+  - Path Robotics
+  - Machina Labs
+  - Carbon Robotics
+  - Monarch Tractor
+  - Bear Robotics
+  - Locus Robotics
+  - Symbotic
+  - Landing AI
+  - Roboflow
+  - Voxel51
+  - Clarifai
+  - Hive
+  - Labelbox
+  - Snorkel AI
+  - Encord
+  - Standard AI
+  - Ouster
+  - Luminar
+  - Aeva
+  - Mobileye
+  - Rivian
+  - Lucid Motors
+  - Cerebras
+  - SambaNova
+  - Groq
+  - Etched
+  - d-Matrix
+  - Tenstorrent
+  - Lightmatter
+  - Databricks
+  - Anyscale
+  - Together AI
+  - Fireworks AI
+  - Baseten
+  - Modal
+  - Replicate
+  - Hugging Face
+  - Weights & Biases
+  - Cohere
+  - Mistral AI
+  - Runway
+  - Pika
+  - Luma AI
+  - ElevenLabs
+  - Character.AI
+  - Glean
+  - Harvey
+  - Sierra
+  - Decagon
+  - Cognition
+  - Anysphere
+  - Replit
+  - Vercel
+  - Notion
+  - Figma
+  - Stripe
+  - Ramp
+  - Brex
+  - Plaid
+  - Rippling
+  - Airbnb
+  - Lyft
+  - DoorDash
+  - Instacart
+  - Pinterest
+  - Reddit
+  - Discord
+  - Dropbox
+  - Robinhood
+  - Coinbase
+  - Cloudflare
+  - Datadog
+  - Snowflake
+  - MongoDB
+  - Palantir
+  - Roblox
+  - Duolingo
+  - Grammarly
+  - Asana
+  - Airtable
+  - Twilio
+  - Affirm
+  - Chime
+  - Scale
+  - Retool
+  - Benchling
+  - Samsung Research America
+  - Sony AI
+  - Toyota Research Institute
+  - Bosch
+  - Qualcomm
+  - Arm
+  - Marvell
+
+# Never track these (company names or board tokens)
+exclude: []

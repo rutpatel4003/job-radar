@@ -1,0 +1,72 @@
+name: Job tracker (every 3 hours)
+
+# One run = job boards + community lists + aggregators + career sites (headless browser)
+#         + browser descriptions for big-tech jobs + daily re-check of partial-feed postings.
+# ≈ 10–12 min per run × 8 runs/day ≈ 2,700 min/month → fits GitHub Pro's 3,000.
+# The run stops optional extras at runtime.time_budget_minutes (config.yaml), so it can't overrun.
+on:
+  schedule:
+    - cron: "7 */3 * * *"        # 00:07, 03:07 … 21:07 UTC (= 5pm, 8pm, 11pm, 2am, 5am, 8am, 11am, 2pm Pacific)
+  workflow_dispatch:
+    inputs:
+      test_notification:
+        description: "Only send a test notification"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: job-tracker-writes
+  cancel-in-progress: false
+
+jobs:
+  track:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+      DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+      ADZUNA_APP_ID: ${{ secrets.ADZUNA_APP_ID }}
+      ADZUNA_APP_KEY: ${{ secrets.ADZUNA_APP_KEY }}
+      DASHBOARD_URL: ${{ vars.DASHBOARD_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-pages.txt
+      - run: pip install -q -r requirements-pages.txt
+
+      - name: Test notification
+        if: ${{ inputs.test_notification }}
+        run: python -m tracker.notify
+
+      - name: Cache Playwright browser
+        if: ${{ !inputs.test_notification }}
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('requirements-pages.txt') }}
+      - name: Install headless Chromium
+        if: ${{ !inputs.test_notification }}
+        run: python -m playwright install --with-deps chromium
+
+      - name: Scan everything
+        if: ${{ !inputs.test_notification }}
+        run: python -m tracker.run
+
+      - name: Save results
+        if: ${{ !inputs.test_notification }}
+        run: |
+          git config user.name "job-tracker-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A data
+          if git diff --staged --quiet; then echo "No changes"; exit 0; fi
+          git commit -q -m "jobs: $(date -u +'%Y-%m-%d %H:%M UTC')"
+          for i in 1 2 3; do git pull -q --rebase -X theirs && git push -q && exit 0; sleep 7; done
+          exit 1

@@ -1,0 +1,35 @@
+name: H-1B sponsor data (quarterly)
+
+on:
+  schedule:
+    - cron: "0 10 5 1,4,7,10 *"  # quarterly — the Dept. of Labor publishes new data each quarter
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: job-tracker-writes
+  cancel-in-progress: false
+
+jobs:
+  h1b:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install requests PyYAML openpyxl
+      - run: python -m tracker.h1b
+      - name: Save
+        run: |
+          git config user.name "job-tracker-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/h1b.json
+          if git diff --staged --quiet; then echo "No changes"; exit 0; fi
+          git commit -q -m "h1b: refresh $(date -u +%F)"
+          for i in 1 2 3; do git pull -q --rebase -X theirs && git push -q && exit 0; sleep 7; done
+          exit 1

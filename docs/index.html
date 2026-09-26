@@ -1,0 +1,804 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://api.github.com; img-src data:; base-uri 'none'; form-action 'none'">
+<title>Job radar</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F2F4F6; --surface:#FFFFFF; --ink:#15202B; --muted:#5A6774; --rule:#D8DEE4; --hover:#EAEFF3;
+  --box:#E8B400; --box-ink:#3A2E00; --good:#1C7F53; --good-bg:#E3F4EB; --bad:#B8352A; --bad-bg:#FBE9E7;
+  --warn:#8F5E0A; --warn-bg:#FBF1DC; --plain-bg:#EDF0F3; --link:#1D5FB8; --sel:#DCE8F7;
+  --s-saved:#4A5A6A; --s-applied:#1D5FB8; --s-oa:#6B45B5; --s-interviewing:#B06A00; --s-offer:#1C7F53; --s-rejected:#B8352A; --s-quiet:#7A8691;
+  --ui:"Schibsted Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --read:"Source Serif 4", Georgia, "Times New Roman", serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0E141A; --surface:#151E27; --ink:#E4EAF0; --muted:#8D9BA8; --rule:#26323D; --hover:#1B2631;
+    --box:#F2C200; --box-ink:#241C00; --good:#5CC592; --good-bg:#16302A; --bad:#F08A7F; --bad-bg:#3A1F1C;
+    --warn:#E3B55B; --warn-bg:#352A14; --plain-bg:#1E2833; --link:#7DB0F5; --sel:#1C3350;
+    --s-saved:#A9B6C2; --s-applied:#7DB0F5; --s-oa:#B79BF0; --s-interviewing:#E3B55B; --s-offer:#5CC592; --s-rejected:#F08A7F; --s-quiet:#8D9BA8;
+    color-scheme: dark;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{background:var(--bg);color:var(--ink);font:15px/1.45 var(--ui);-webkit-font-smoothing:antialiased;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+a{color:var(--link)}
+button,select,input,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--link);outline-offset:2px}
+[hidden]{display:none !important}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;border:1px solid var(--rule);background:var(--surface);
+  text-decoration:none;color:var(--ink);font-weight:600;cursor:pointer;white-space:nowrap}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn.small{padding:5px 10px;font-size:13.5px}
+.btn:disabled{opacity:.5;cursor:default}
+input[type=text],input[type=password],input[type=search],input[type=date],select,textarea{
+  padding:8px 11px;border:1px solid var(--rule);border-radius:8px;background:var(--surface)}
+
+/* ── lock screen ── */
+#gate{max-width:460px;margin:12vh auto;padding:0 20px}
+#gate h1{font-size:30px;font-weight:800;letter-spacing:-.02em;margin:0 0 6px}
+#gate p{color:var(--muted);margin:0 0 20px}
+#gate label{display:block;font-weight:600;margin:14px 0 6px}
+#gate input[type=text],#gate input[type=password]{width:100%}
+#gate .row2{display:flex;justify-content:space-between;align-items:center;margin-top:16px;gap:12px}
+#gateErr{color:var(--bad);margin-top:14px;min-height:1.4em}
+#gate details{margin-top:26px;color:var(--muted);font-size:14px}
+#gate details ol{padding-left:20px}
+
+/* ── header ── */
+header{padding:20px clamp(16px,3vw,32px) 10px;display:flex;flex-wrap:wrap;gap:8px 20px;align-items:flex-end;justify-content:space-between}
+.headline{font-size:clamp(22px,3vw,32px);font-weight:800;letter-spacing:-0.02em;line-height:1.1;margin:0}
+.headline .n{display:inline-block;padding:0 .18em;border:2px solid var(--box);position:relative}
+.headline .n::after{content:"new";position:absolute;left:-2px;top:-1.15em;font-size:11px;font-weight:700;background:var(--box);color:var(--box-ink);padding:1px 5px;line-height:1.3}
+.sub{color:var(--muted);font-size:14px;margin-top:4px}
+.hdr-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#sync{font-size:13px;color:var(--muted)}
+#sync.err{color:var(--bad);font-weight:600}
+
+/* ── tabs ── */
+.tabs{display:flex;gap:4px;padding:0 clamp(16px,3vw,32px);border-bottom:1px solid var(--rule)}
+.tab{border:0;background:none;padding:10px 14px;font-weight:700;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-1px}
+.tab[aria-selected=true]{color:var(--ink);border-bottom-color:var(--ink)}
+.tab .cnt{font-weight:600;color:var(--muted);margin-left:4px}
+
+/* ── filters ── */
+.filters{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--rule);
+  padding:10px clamp(16px,3vw,32px);display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
+.filters input[type=search]{flex:1 1 220px;min-width:170px}
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:none;padding:7px 11px;cursor:pointer;font-weight:500}
+.seg button+button{border-left:1px solid var(--rule)}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+.toggle{display:inline-flex;gap:6px;align-items:center;font-size:14px;cursor:pointer;user-select:none}
+.stchips{display:flex;flex-wrap:wrap;gap:6px}
+.stchip{border:1px solid var(--rule);background:var(--surface);border-radius:999px;padding:5px 11px;cursor:pointer;font-size:13.5px;font-weight:600}
+.stchip[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+
+/* ── table ── */
+.tablewrap{overflow-x:auto;background:var(--surface)}
+table{width:100%;border-collapse:collapse;min-width:900px}
+thead th{position:sticky;top:0;background:var(--surface);text-align:left;font-size:12.5px;font-weight:700;color:var(--muted);
+  padding:10px 10px;border-bottom:1px solid var(--rule);white-space:nowrap}
+th button{border:0;background:none;padding:0;font:inherit;color:inherit;cursor:pointer;display:inline-flex;gap:4px;align-items:center}
+th[aria-sort=ascending] button::after{content:"▲";font-size:9px}
+th[aria-sort=descending] button::after{content:"▼";font-size:9px}
+th[aria-sort] button{color:var(--ink)}
+tbody tr{border-bottom:1px solid var(--rule);cursor:pointer;position:relative}
+tbody tr:hover{background:var(--hover)}
+tbody tr.sel{background:var(--sel)}
+tbody tr.closed .role{text-decoration:line-through;text-decoration-color:var(--muted)}
+td{padding:10px 10px;vertical-align:top;font-size:14.5px}
+td.muted{color:var(--muted);font-size:13.5px;white-space:nowrap}
+td .co{font-weight:800}
+td .role{font-weight:600}
+td .chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
+td.fresh{position:relative}
+td.fresh::before,td.fresh::after{content:"";position:absolute;width:10px;height:10px;border-color:var(--box);border-style:solid}
+td.fresh::before{top:4px;left:2px;border-width:3px 0 0 3px}
+td.fresh::after{bottom:4px;left:2px;border-width:0 0 3px 3px}
+.chip{font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap;background:var(--plain-bg);color:var(--muted);display:inline-block}
+.chip.good{background:var(--good-bg);color:var(--good)} .chip.bad{background:var(--bad-bg);color:var(--bad)}
+.chip.warn{background:var(--warn-bg);color:var(--warn)} .chip.star{background:var(--box);color:var(--box-ink)}
+.st{font-size:12.5px;font-weight:700;white-space:nowrap}
+.st::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:currentColor;margin-right:6px;vertical-align:1px}
+.st-saved{color:var(--s-saved)} .st-applied{color:var(--s-applied)} .st-oa{color:var(--s-oa)} .st-interviewing{color:var(--s-interviewing)}
+.st-offer{color:var(--s-offer)} .st-rejected{color:var(--s-rejected)} .st-ghosted,.st-withdrawn,.st-not_interested{color:var(--s-quiet)}
+.notes-cell{max-width:280px;color:var(--muted);font-size:13.5px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.empty{padding:40px 32px;color:var(--muted);background:var(--surface)}
+
+/* ── pager ── */
+.pager{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between;padding:12px clamp(16px,3vw,32px) 28px}
+.pager .pages{display:flex;gap:4px;flex-wrap:wrap}
+.pager .pg{min-width:36px;padding:6px 8px;border:1px solid var(--rule);border-radius:7px;background:var(--surface);cursor:pointer;font-weight:600}
+.pager .pg[aria-current=page]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.pager .gap{padding:6px 2px;color:var(--muted)}
+.pager .info{color:var(--muted);font-size:14px}
+
+.m-only{display:none}
+.more{display:contents}
+/* mobile: rows become cards, filters fold away, sorting via a select */
+@media (max-width:760px){
+  .m-only{display:inline-flex}
+  .more{display:none}
+  .more.show{display:flex;flex-wrap:wrap;gap:8px 12px;width:100%}
+  td.st-empty{display:none}
+  table{min-width:0}
+  thead{display:none}
+  tbody tr{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:12px 16px}
+  td{padding:0;border:0}
+  td.c-role{grid-column:1 / -1;order:-1}
+  td.c-co{grid-column:1;order:-2}
+  td.c-hide-m{display:none}
+  td.muted{white-space:normal}
+}
+
+/* ── detail drawer ── */
+#scrim{position:fixed;inset:0;background:rgba(10,15,20,.35);z-index:19}
+#detail{position:fixed;top:0;right:0;bottom:0;width:min(640px,100vw);background:var(--surface);z-index:20;overflow-y:auto;
+  transform:translateX(100%);transition:transform .2s ease;padding-top:env(safe-area-inset-top,0px);visibility:hidden}
+#detail.open{transform:none;box-shadow:-12px 0 32px rgba(0,0,0,.18);visibility:visible}
+@media (prefers-reduced-motion:reduce){#detail{transition:none}}
+.d-wrap{padding:18px clamp(18px,3vw,30px) 60px}
+.d-top{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:6px}
+.d-co{font-size:15px;font-weight:700;color:var(--muted)}
+.d-title{font-size:clamp(21px,2.6vw,26px);font-weight:800;letter-spacing:-0.015em;line-height:1.15;margin:4px 0 14px}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.track{border:1px solid var(--rule);border-radius:12px;padding:14px 16px;margin:0 0 16px}
+.track h3{margin:0 0 10px;font-size:15px}
+.stbtns{display:flex;flex-wrap:wrap;gap:6px}
+.stbtn{border:1px solid var(--rule);background:var(--surface);border-radius:999px;padding:5px 11px;cursor:pointer;font-size:13.5px;font-weight:600}
+.stbtn[aria-pressed=true]{color:#fff;border-color:transparent}
+.stbtn[aria-pressed=true].b-saved{background:var(--s-saved)} .stbtn[aria-pressed=true].b-applied{background:var(--s-applied)}
+.stbtn[aria-pressed=true].b-oa{background:var(--s-oa)} .stbtn[aria-pressed=true].b-interviewing{background:var(--s-interviewing)}
+.stbtn[aria-pressed=true].b-offer{background:var(--s-offer)} .stbtn[aria-pressed=true].b-rejected{background:var(--s-rejected)}
+.stbtn[aria-pressed=true].b-ghosted,.stbtn[aria-pressed=true].b-withdrawn,.stbtn[aria-pressed=true].b-not_interested{background:var(--s-quiet)}
+@media (prefers-color-scheme: dark){.stbtn[aria-pressed=true]{color:#0E141A}}
+.trackgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.trackgrid label{font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+.track textarea{width:100%;min-height:110px;resize:vertical;margin-top:4px;font-family:var(--ui);line-height:1.45}
+.hist{margin:10px 0 0;padding:0;list-style:none;font-size:13px;color:var(--muted)}
+.hist li{padding:2px 0}
+.facts{display:grid;grid-template-columns:max-content 1fr;gap:6px 18px;margin:0 0 18px;font-size:14.5px}
+.facts dt{color:var(--muted)} .facts dd{margin:0}
+.panel{border:1px solid var(--rule);border-radius:10px;padding:14px 16px;margin:0 0 14px}
+.panel h3{margin:0 0 8px;font-size:15px}
+.panel.good{border-color:var(--good);background:var(--good-bg)} .panel.bad{border-color:var(--bad);background:var(--bad-bg)}
+.panel.warn{border-color:var(--warn);background:var(--warn-bg)}
+.quote{font-family:var(--read);font-size:15.5px;margin:6px 0 0;padding-left:12px;border-left:3px solid currentColor}
+.small{font-size:13px;color:var(--muted)}
+.skills{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.skill{font-size:12.5px;padding:2px 8px;border-radius:6px;background:var(--good-bg);color:var(--good)}
+.skill.miss{background:var(--plain-bg);color:var(--muted)}
+.desc{font-family:var(--read);font-size:16.5px;line-height:1.62;white-space:pre-wrap;overflow-wrap:anywhere;max-width:70ch;margin-top:20px;border-top:1px solid var(--rule);padding-top:18px}
+.kbd{font-size:13px;color:var(--muted);padding:0 clamp(16px,3vw,32px) 30px}
+.kbd kbd{font-family:var(--ui);border:1px solid var(--rule);border-bottom-width:2px;border-radius:4px;padding:0 5px;font-size:12px}
+</style>
+</head>
+<body>
+
+<!-- ── Lock screen: nothing is loaded until a valid token for YOUR private repo is entered ── -->
+<section id="gate">
+  <h1>Job radar</h1>
+  <p>Private dashboard. Job data stays in your private GitHub repo; this page has none of it.</p>
+  <label for="gRepo">Repository (owner/name)</label>
+  <input type="text" id="gRepo" placeholder="rutpatel4003/job-radar" autocomplete="off" spellcheck="false">
+  <label for="gToken">Access token</label>
+  <input type="password" id="gToken" placeholder="github_pat_…" autocomplete="off" spellcheck="false">
+  <div class="row2">
+    <label class="toggle" style="margin:0;font-weight:500"><input type="checkbox" id="gRemember" checked> Remember on this device</label>
+    <button class="btn primary" id="gGo">Unlock</button>
+  </div>
+  <div id="gateErr" role="alert"></div>
+  <details>
+    <summary>How to create the token (2 minutes)</summary>
+    <ol>
+      <li>GitHub → Settings → Developer settings → Personal access tokens → <b>Fine-grained tokens</b> → Generate new token.</li>
+      <li>Repository access: <b>Only select repositories</b> → your job-radar repo.</li>
+      <li>Permissions → Repository → <b>Contents: Read and write</b>. Nothing else.</li>
+      <li>Pick an expiration (for example 1 year), generate, and paste it here.</li>
+    </ol>
+    <p>The token only ever goes to api.github.com. Use “Lock” on shared computers.</p>
+  </details>
+</section>
+
+<div id="app" hidden>
+  <header>
+    <div>
+      <h1 class="headline" id="headline">Loading…</h1>
+      <div class="sub" id="sub"></div>
+    </div>
+    <div class="hdr-actions">
+      <span id="sync" aria-live="polite"></span>
+      <button class="btn small" id="refresh">Refresh</button>
+      <button class="btn small" id="lock">Lock</button>
+    </div>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tabJobs" aria-selected="true">Jobs<span class="cnt" id="cntJobs"></span></button>
+    <button class="tab" role="tab" id="tabMine" aria-selected="false">My applications<span class="cnt" id="cntMine"></span></button>
+  </div>
+
+  <div class="filters" id="fJobs" role="search">
+    <input type="search" id="q" placeholder="Search company, title, location, skill" aria-label="Search jobs">
+    <button class="btn small m-only" id="mFilters" aria-expanded="false">Filters</button>
+    <select class="m-only" id="mSort" aria-label="Sort by"></select>
+    <div class="more" id="moreFilters">
+    <div class="seg" id="cats" aria-label="Role type">
+      <button data-v="ML" aria-pressed="true">ML/AI</button><button data-v="CV" aria-pressed="true">CV</button><button data-v="SDE" aria-pressed="true">SDE</button>
+    </div>
+    <select id="spons" aria-label="Sponsorship">
+      <option value="all">Any sponsorship</option>
+      <option value="nohard" selected>Hide “no sponsorship” &amp; citizens-only</option>
+      <option value="likely">Likely sponsors only</option>
+    </select>
+    <select id="age" aria-label="Found within">
+      <option value="24">Found in last 24 h</option><option value="72">Last 3 days</option>
+      <option value="168" selected>Last 7 days</option><option value="720">Last 30 days</option><option value="0">Any time</option>
+    </select>
+    <select id="region" aria-label="Location"><option value="">Anywhere in the US</option></select>
+    <label class="toggle"><input type="checkbox" id="prio"> Top companies</label>
+    <label class="toggle"><input type="checkbox" id="ng"> New-grad titles</label>
+    <label class="toggle"><input type="checkbox" id="hideEarly" checked> Hide starts before June 2027</label>
+    <label class="toggle"><input type="checkbox" id="hideTracked" checked> Hide jobs I’m tracking</label>
+    <label class="toggle"><input type="checkbox" id="showClosed"> Show closed</label>
+    </div>
+  </div>
+
+  <div class="filters" id="fMine" role="search" hidden>
+    <input type="search" id="q2" placeholder="Search your applications and notes" aria-label="Search applications">
+    <select class="m-only" id="mSort2" aria-label="Sort by"></select>
+    <div class="stchips" id="stchips"></div>
+    <button class="btn small" id="csv">Export CSV</button>
+  </div>
+
+  <div class="tablewrap"><table>
+    <thead><tr id="thead"></tr></thead>
+    <tbody id="tbody"></tbody>
+  </table></div>
+  <div class="empty" id="empty" hidden></div>
+  <nav class="pager" aria-label="Pages">
+    <div class="info" id="pinfo"></div>
+    <div class="pages" id="pages"></div>
+    <label class="toggle">Per page
+      <select id="psize"><option>25</option><option selected>50</option><option>100</option><option>200</option></select></label>
+  </nav>
+  <div class="kbd">Keys: <kbd>j</kbd>/<kbd>k</kbd> move, <kbd>Enter</kbd> open details, <kbd>o</kbd> open application, <kbd>s</kbd> save, <kbd>a</kbd> applied, <kbd>x</kbd> not interested, <kbd>←</kbd>/<kbd>→</kbd> pages, <kbd>Esc</kbd> close.</div>
+</div>
+
+<div id="scrim" hidden></div>
+<aside id="detail" aria-label="Job details"></aside>
+
+<script>
+(() => {
+"use strict";
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const LS = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  del(k) { try { localStorage.removeItem(k); } catch {} }
+};
+const STATUSES = [
+  ["saved","Saved"],["applied","Applied"],["oa","Assessment"],["interviewing","Interviewing"],["offer","Offer"],
+  ["rejected","Rejected"],["ghosted","No response"],["withdrawn","Withdrawn"],["not_interested","Not interested"]];
+const ST_LABEL = Object.fromEntries(STATUSES);
+const ST_ORDER = Object.fromEntries(STATUSES.map(([k], i) => [k, i]));
+const nowISO = () => new Date().toISOString();
+const today = () => new Date().toISOString().slice(0, 10);
+
+/* ───────────── GitHub API layer ───────────── */
+let REPO = "", TOKEN = "", BRANCH = "main";
+async function gh(path, {raw = false, method = "GET", body} = {}) {
+  const res = await fetch(`https://api.github.com/repos/${REPO}${path}`, {
+    method, cache: "no-store", referrerPolicy: "no-referrer",
+    headers: {
+      "Authorization": `Bearer ${TOKEN}`,
+      "Accept": raw ? "application/vnd.github.raw+json" : "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+      ...(body ? {"Content-Type": "application/json"} : {})
+    },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  if (!res.ok) { const e = new Error(`GitHub ${res.status}`); e.status = res.status; throw e; }
+  return raw ? res.text() : res.json();
+}
+const b64enc = str => { const b = new TextEncoder().encode(str); let s = ""; for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000)); return btoa(s); };
+const b64dec = b64 => new TextDecoder().decode(Uint8Array.from(atob(b64.replace(/\s/g, "")), c => c.charCodeAt(0)));
+
+/* ───────────── lock screen ───────────── */
+function creds() {
+  const s = sessionStorage.getItem("jr_cred") || localStorage.getItem("jr_cred");
+  try { return s ? JSON.parse(s) : null; } catch { return null; }
+}
+async function unlock(repo, token, remember) {
+  REPO = repo.trim().replace(/^https?:\/\/github\.com\//, "").replace(/\/+$/, ""); TOKEN = token.trim();
+  const info = await gh("");
+  if (!info.private) throw new Error("This repository is PUBLIC. Make it private first (Settings → General → Danger zone → Change visibility).");
+  if (info.permissions && !info.permissions.push) throw new Error("The token can read but not write. Give it “Contents: Read and write”.");
+  BRANCH = info.default_branch || "main";
+  const c = JSON.stringify({repo: REPO, token: TOKEN});
+  sessionStorage.setItem("jr_cred", c);
+  if (remember) localStorage.setItem("jr_cred", c); else localStorage.removeItem("jr_cred");
+}
+function lock() {
+  sessionStorage.removeItem("jr_cred"); localStorage.removeItem("jr_cred");
+  location.reload();
+}
+$("#gGo").addEventListener("click", async () => {
+  $("#gateErr").textContent = ""; $("#gGo").disabled = true;
+  try { await unlock($("#gRepo").value, $("#gToken").value, $("#gRemember").checked); await start(); }
+  catch (e) {
+    $("#gateErr").textContent = e.status === 401 ? "That token isn't valid (or has expired)." :
+      e.status === 404 ? "Repository not found, or the token has no access to it." : e.message;
+  } finally { $("#gGo").disabled = false; }
+});
+$("#gToken").addEventListener("keydown", e => { if (e.key === "Enter") $("#gGo").click(); });
+$("#lock").addEventListener("click", lock);
+
+/* ───────────── state ───────────── */
+let JOBS = [], BYUID = {}, META = {}, REGIONS = {};
+let TAB = "jobs", view = [], page = 1, selUid = null;
+const lastVisit = LS.get("lastVisit", null);
+const prefs = LS.get("prefs", {});
+const sortState = prefs.sort || {jobs: {key: "found", dir: "desc"}, mine: {key: "updated", dir: "desc"}};
+let stFilter = new Set(prefs.stFilter || []);
+
+/* ───────────── tracking (statuses + notes), synced to data/tracking.json ───────────── */
+const T = {sha: null, data: {version: 1, jobs: {}}, dirty: false, saving: false, timer: null};
+const TRACK_PATH = "/contents/data/tracking.json";
+function setSync(text, err) { const el = $("#sync"); el.textContent = text; el.classList.toggle("err", !!err); }
+async function fetchTracking() {
+  try {
+    const r = await gh(`${TRACK_PATH}?ref=${encodeURIComponent(BRANCH)}`);
+    return {sha: r.sha, data: JSON.parse(b64dec(r.content))};
+  } catch (e) { if (e.status === 404) return {sha: null, data: {version: 1, jobs: {}}}; throw e; }
+}
+function mergeTracking(a, b) {           // newest edit per job wins
+  const out = {version: 1, jobs: {...(a.jobs || {})}};
+  for (const [uid, v] of Object.entries(b.jobs || {})) {
+    const cur = out.jobs[uid];
+    if (!cur || (v.updated_at || "") > (cur.updated_at || "")) out.jobs[uid] = v;
+  }
+  return out;
+}
+async function loadTracking() {
+  const remote = await fetchTracking();
+  T.sha = remote.sha; T.data = remote.data;
+  const cache = LS.get("jr_track_unsynced", null);      // edits made while offline / before a failed save
+  if (cache && cache.repo === REPO) { T.data = mergeTracking(T.data, cache.data); T.dirty = true; scheduleSave(0); }
+}
+function tr(uid) { const t = T.data.jobs[uid]; return t && t.status ? t : null; }
+function setTrack(uid, patch) {
+  const j = BYUID[uid] || (T.data.jobs[uid] || {}).snap || {};
+  const cur = T.data.jobs[uid] ? {...T.data.jobs[uid]} : {history: [], created_at: nowISO()};
+  if ("status" in patch && patch.status !== cur.status) {
+    cur.history = [...(cur.history || []), {status: patch.status || "cleared", at: nowISO()}];
+    if (patch.status === "applied" && !cur.applied_at) cur.applied_at = today();
+  }
+  Object.assign(cur, patch, {updated_at: nowISO()});
+  cur.snap = {company: j.company, title: j.title, url: j.url, locations: (j.locations || []).slice(0, 3), d: j.d};
+  T.data.jobs[uid] = cur;
+  T.dirty = true;
+  LS.set("jr_track_unsynced", {repo: REPO, data: T.data});
+  scheduleSave(1500);
+}
+function scheduleSave(ms) { clearTimeout(T.timer); setSync("Unsaved changes…"); T.timer = setTimeout(save, ms); }
+async function save() {
+  if (T.saving) { T.timer = setTimeout(save, 800); return; }
+  if (!T.dirty) return;
+  T.saving = true; T.dirty = false; setSync("Saving…");
+  try {
+    for (let attempt = 0; attempt < 4; attempt++) {
+      try {
+        const res = await gh(TRACK_PATH, {method: "PUT", body: {
+          message: "tracking: update from dashboard", branch: BRANCH,
+          content: b64enc(JSON.stringify(T.data, null, 1)), ...(T.sha ? {sha: T.sha} : {})}});
+        T.sha = res.content.sha;
+        if (!T.dirty) LS.del("jr_track_unsynced");
+        setSync(`Saved ${new Date().toLocaleTimeString([], {hour: "numeric", minute: "2-digit"})}`);
+        return;
+      } catch (e) {
+        if (e.status === 409 || e.status === 422) {       // someone (another device) saved in between → merge + retry
+          const remote = await fetchTracking();
+          T.data = mergeTracking(remote.data, T.data); T.sha = remote.sha;
+          continue;
+        }
+        throw e;
+      }
+    }
+    throw new Error("conflict");
+  } catch (e) {
+    T.dirty = true;
+    setSync(e.status === 401 ? "Token expired. Lock and unlock again." : "Couldn't save. Will retry.", true);
+    T.timer = setTimeout(save, 20000);
+  } finally { T.saving = false; }
+}
+window.addEventListener("beforeunload", e => { if (T.dirty || T.saving) { e.preventDefault(); e.returnValue = ""; } });
+
+/* ───────────── helpers ───────────── */
+const hoursAgo = iso => iso ? (Date.now() - new Date(iso).getTime()) / 36e5 : Infinity;
+function ago(iso) {
+  const h = hoursAgo(iso); if (!isFinite(h)) return "—";
+  if (h < 1) return "just now"; if (h < 24) return `${Math.floor(h)}h ago`;
+  const d = Math.floor(h / 24); return d < 45 ? `${d}d ago` : new Date(iso).toLocaleDateString([], {month: "short", day: "numeric"});
+}
+const fmtDate = iso => iso ? new Date(iso).toLocaleString([], {month: "short", day: "numeric", hour: "numeric", minute: "2-digit"}) : "—";
+const fmtDay = d => d ? new Date(d + (d.length === 10 ? "T12:00:00" : "")).toLocaleDateString([], {month: "short", day: "numeric", year: "numeric"}) : "—";
+function spons(j) {
+  const n = j.h1b ? j.h1b.tech : null;
+  if (j.sponsorship === "citizen") return {cls: "bad", label: "Citizens / clearance", level: "hard", rank: 4};
+  if (j.sponsorship === "no_sponsor") return {cls: "bad", label: "No sponsorship", level: "hard", rank: 3};
+  if (j.sponsorship === "sponsors") return {cls: "good", label: "Sponsors (per JD)", level: "likely", rank: 0};
+  if (n >= 20) return {cls: "good", label: `H-1B history ${n.toLocaleString()}`, level: "likely", rank: 1};
+  if (n > 0) return {cls: "warn", label: `Few H-1B filings (${n})`, level: "maybe", rank: 2};
+  if (n === 0) return {cls: "", label: "No H-1B record", level: "maybe", rank: 2.5};
+  return {cls: "", label: "Sponsorship unknown", level: "maybe", rank: 2};
+}
+const locOf = j => ((j.locations || [])[0] || (j.loc_status === "remote" ? "Remote" : "—")) + ((j.locations || []).length > 1 ? ` +${j.locations.length - 1}` : "");
+
+/* ───────────── columns + sorting ───────────── */
+const COLS = {
+  jobs: [
+    {key: "company", label: "Company", cls: "c-co", sort: j => j.company.toLowerCase()},
+    {key: "title", label: "Role", cls: "c-role", sort: j => j.title.toLowerCase()},
+    {key: "location", label: "Location", cls: "", sort: j => locOf(j).toLowerCase()},
+    {key: "posted", label: "Posted", cls: "c-hide-m", sort: j => j.posted_at || ""},
+    {key: "found", label: "Found", cls: "", sort: j => j.first_seen || ""},
+    {key: "spons", label: "Sponsorship", cls: "c-hide-m", sort: j => spons(j).rank},
+    {key: "match", label: "Match", cls: "c-hide-m", sort: j => j.match ?? -1},
+    {key: "status", label: "Status", cls: "", sort: j => tr(j.uid) ? ST_ORDER[tr(j.uid).status] : 99},
+  ],
+  mine: [
+    {key: "company", label: "Company", cls: "c-co", sort: r => (r.j.company || "").toLowerCase()},
+    {key: "title", label: "Role", cls: "c-role", sort: r => (r.j.title || "").toLowerCase()},
+    {key: "status", label: "Status", cls: "", sort: r => ST_ORDER[r.t.status]},
+    {key: "applied", label: "Applied", cls: "", sort: r => r.t.applied_at || ""},
+    {key: "follow", label: "Follow up", cls: "c-hide-m", sort: r => r.t.follow_up || "9999"},
+    {key: "updated", label: "Updated", cls: "c-hide-m", sort: r => r.t.updated_at || ""},
+    {key: "notes", label: "Notes", cls: "c-hide-m", sort: r => (r.t.notes || "").toLowerCase()},
+  ]
+};
+function renderHead() {
+  const st = sortState[TAB];
+  const opts = COLS[TAB].flatMap(c => [["asc", "↑"], ["desc", "↓"]].map(([d, a]) => `<option value="${c.key}:${d}" ${st.key === c.key && st.dir === d ? "selected" : ""}>Sort: ${esc(c.label)} ${a}</option>`)).join("");
+  $(TAB === "jobs" ? "#mSort" : "#mSort2").innerHTML = opts;
+  $("#thead").innerHTML = COLS[TAB].map(c => `<th scope="col" class="${c.cls}" ${st.key === c.key ? `aria-sort="${st.dir === "asc" ? "ascending" : "descending"}"` : ""}><button data-sort="${c.key}">${esc(c.label)}</button></th>`).join("");
+}
+["#mSort", "#mSort2"].forEach(id => $(id).addEventListener("change", e => {
+  const [key, dir] = e.target.value.split(":"); sortState[TAB] = {key, dir}; page = 1; savePrefs(); render();
+}));
+$("#mFilters").addEventListener("click", () => {
+  const m = $("#moreFilters"); m.classList.toggle("show"); $("#mFilters").setAttribute("aria-expanded", m.classList.contains("show"));
+});
+$("#thead").addEventListener("click", e => {
+  const b = e.target.closest("button[data-sort]"); if (!b) return;
+  const st = sortState[TAB];
+  if (st.key === b.dataset.sort) st.dir = st.dir === "asc" ? "desc" : "asc";
+  else { st.key = b.dataset.sort; st.dir = ["found","posted","match","updated","applied"].includes(st.key) ? "desc" : "asc"; }
+  page = 1; savePrefs(); render();
+});
+function sortRows(rows) {
+  const st = sortState[TAB], col = COLS[TAB].find(c => c.key === st.key) || COLS[TAB][0];
+  const m = st.dir === "asc" ? 1 : -1;
+  return rows.map(r => [col.sort(r), r]).sort((a, b) => (a[0] > b[0] ? 1 : a[0] < b[0] ? -1 : 0) * m).map(x => x[1]);
+}
+
+/* ───────────── filtering ───────────── */
+function jobRows() {
+  const q = $("#q").value.trim().toLowerCase();
+  const cats = new Set([...document.querySelectorAll("#cats button[aria-pressed=true]")].map(b => b.dataset.v));
+  const sp = $("#spons").value, maxAge = +$("#age").value, ng = $("#ng").checked, pr = $("#prio").checked;
+  const hideE = $("#hideEarly").checked, hideT = $("#hideTracked").checked, showC = $("#showClosed").checked;
+  const rx = REGIONS[$("#region").value];
+  return JOBS.filter(j => {
+    const t = tr(j.uid);
+    if (t && t.status === "not_interested") return false;
+    if (hideT && t) return false;
+    if (!showC && j.status === "closed") return false;
+    if (!(j.categories || []).some(c => cats.has(c))) return false;
+    if (ng && !(j.tags || []).includes("newgrad")) return false;
+    if (pr && !j.priority) return false;
+    if (hideE && j.start === "too_early") return false;
+    if (rx && !rx.test((j.locations || []).join(" | ") + (j.loc_status === "remote" ? " remote" : ""))) return false;
+    if (maxAge && hoursAgo(j.first_seen) > maxAge) return false;
+    const s = spons(j);
+    if (sp === "nohard" && s.level === "hard") return false;
+    if (sp === "likely" && s.level !== "likely") return false;
+    if (q) {
+      const hay = `${j.company} ${j.title} ${(j.locations || []).join(" ")} ${(j.missing || []).join(" ")} ${j.resume || ""}`.toLowerCase();
+      if (!q.split(/\s+/).every(w => hay.includes(w))) return false;
+    }
+    return true;
+  });
+}
+function mineRows() {
+  const q = $("#q2").value.trim().toLowerCase();
+  return Object.entries(T.data.jobs).filter(([, t]) => t.status).map(([uid, t]) => ({uid, t, j: BYUID[uid] || {...(t.snap || {}), uid}}))
+    .filter(r => (stFilter.size ? stFilter.has(r.t.status) : r.t.status !== "not_interested"))
+    .filter(r => !q || `${r.j.company} ${r.j.title} ${r.t.notes || ""}`.toLowerCase().includes(q));
+}
+
+/* ───────────── rendering ───────────── */
+function chipsFor(j) {
+  const c = [];
+  if (j.priority) c.push(`<span class="chip star">Top company</span>`);
+  if ((j.tags || []).includes("newgrad")) c.push(`<span class="chip star">New grad</span>`);
+  if (j.start === "fits") c.push(`<span class="chip good">2027 start</span>`);
+  if (j.start === "too_early") c.push(`<span class="chip bad">Starts too early</span>`);
+  if (j.repost_of) c.push(`<span class="chip warn">Repost${j.prev_status ? `: you ${esc((ST_LABEL[j.prev_status] || "").toLowerCase())} before` : ""}</span>`);
+  if (j.reopened_at) c.push(`<span class="chip warn">Reopened</span>`);
+  if (j.status === "closed") c.push(`<span class="chip">Closed</span>`);
+  if (j.salary) c.push(`<span class="chip">${esc(j.salary)}</span>`);
+  return c.join("");
+}
+const stHTML = s => s ? `<span class="st st-${s}">${esc(ST_LABEL[s])}</span>` : `<span class="small">—</span>`;
+function rowJobs(j) {
+  const s = spons(j), t = tr(j.uid), fresh = lastVisit && j.first_seen > lastVisit;
+  return `<tr data-uid="${esc(j.uid)}" class="${j.status === "closed" ? "closed" : ""}${j.uid === selUid ? " sel" : ""}">
+    <td class="c-co${fresh ? " fresh" : ""}" style="padding-left:16px"><span class="co">${esc(j.company)}</span></td>
+    <td class="c-role"><div class="role">${esc(j.title)}</div><div class="chips">${chipsFor(j)}</div></td>
+    <td class="muted">${esc(locOf(j))}</td>
+    <td class="muted c-hide-m">${ago(j.posted_at)}</td>
+    <td class="muted">${ago(j.first_seen)}</td>
+    <td class="c-hide-m"><span class="chip ${s.cls}">${esc(s.label)}</span></td>
+    <td class="muted c-hide-m">${j.match != null ? `${j.match}% ${esc(j.resume)}` : "—"}</td>
+    <td class="${t ? "" : "st-empty"}">${stHTML(t && t.status)}</td></tr>`;
+}
+function rowMine(r) {
+  const due = r.t.follow_up && r.t.follow_up <= today() && !["offer","rejected","withdrawn","not_interested"].includes(r.t.status);
+  return `<tr data-uid="${esc(r.uid)}" class="${r.uid === selUid ? "sel" : ""}">
+    <td class="c-co" style="padding-left:16px"><span class="co">${esc(r.j.company || "?")}</span></td>
+    <td class="c-role"><div class="role">${esc(r.j.title || r.uid)}</div>${BYUID[r.uid] && BYUID[r.uid].status === "closed" ? `<div class="chips"><span class="chip">Posting closed</span></div>` : ""}</td>
+    <td>${stHTML(r.t.status)}</td>
+    <td class="muted">${r.t.applied_at ? fmtDay(r.t.applied_at) : "—"}</td>
+    <td class="muted c-hide-m">${r.t.follow_up ? `<span class="${due ? "chip warn" : ""}">${fmtDay(r.t.follow_up)}${due ? " · due" : ""}</span>` : "—"}</td>
+    <td class="muted c-hide-m">${ago(r.t.updated_at)}</td>
+    <td class="c-hide-m"><div class="notes-cell">${esc(r.t.notes || "")}</div></td></tr>`;
+}
+function render() {
+  const psize = +$("#psize").value;
+  view = sortRows(TAB === "jobs" ? jobRows() : mineRows());
+  const pagesN = Math.max(1, Math.ceil(view.length / psize));
+  page = Math.min(Math.max(1, page), pagesN);
+  const slice = view.slice((page - 1) * psize, page * psize);
+  renderHead();
+  $("#tbody").innerHTML = slice.map(TAB === "jobs" ? rowJobs : rowMine).join("");
+  $("#empty").hidden = view.length > 0;
+  $("#empty").textContent = TAB === "jobs"
+    ? "No jobs match these filters. Try “Any time”, “Any sponsorship”, or untick a toggle."
+    : "Nothing here yet. Open a job and set its status (Saved, Applied, …) to start tracking it.";
+  const from = view.length ? (page - 1) * psize + 1 : 0;
+  $("#pinfo").textContent = `${from.toLocaleString()}–${Math.min(page * psize, view.length).toLocaleString()} of ${view.length.toLocaleString()}`;
+  $("#pages").innerHTML = pagerHTML(page, pagesN);
+  // headline + counts
+  const tracked = Object.values(T.data.jobs).filter(t => t.status && t.status !== "not_interested");
+  $("#cntMine").textContent = tracked.length ? tracked.length : "";
+  $("#cntJobs").textContent = TAB === "jobs" ? view.length.toLocaleString() : "";
+  const fresh = lastVisit ? JOBS.filter(j => j.first_seen > lastVisit && j.status === "open").length : 0;
+  $("#headline").innerHTML = lastVisit
+    ? (fresh ? `<span class="n">${fresh}</span> new role${fresh === 1 ? "" : "s"} since ${esc(fmtDate(lastVisit))}` : `Nothing new since ${esc(fmtDate(lastVisit))}`)
+    : `${(META.open || 0).toLocaleString()} open roles to go through`;
+  const act = ["applied","oa","interviewing","offer"].reduce((n, s) => n + tracked.filter(t => t.status === s).length, 0);
+  $("#sub").textContent = `${(META.open || 0).toLocaleString()} open roles from ${(META.boards || 0).toLocaleString()} company boards plus community lists. Data changed ${ago(META.generated_at)}. ${act} active application${act === 1 ? "" : "s"}.`;
+  renderStChips(tracked);
+}
+function pagerHTML(p, n) {
+  const btn = (i, label = i) => `<button class="pg" data-page="${i}" ${i === p ? 'aria-current="page"' : ""} aria-label="Page ${i}">${label}</button>`;
+  const out = [`<button class="pg" data-page="${p - 1}" ${p === 1 ? "disabled" : ""} aria-label="Previous page">‹</button>`];
+  const set = new Set([1, n, p - 1, p, p + 1, p - 2, p + 2].filter(i => i >= 1 && i <= n));
+  let prev = 0;
+  for (const i of [...set].sort((a, b) => a - b)) { if (i - prev > 1) out.push(`<span class="gap">…</span>`); out.push(btn(i)); prev = i; }
+  out.push(`<button class="pg" data-page="${p + 1}" ${p === n ? "disabled" : ""} aria-label="Next page">›</button>`);
+  return out.join("");
+}
+$("#pages").addEventListener("click", e => { const b = e.target.closest("button[data-page]"); if (!b || b.disabled) return; page = +b.dataset.page; render(); window.scrollTo({top: 0}); });
+function renderStChips(tracked) {
+  const counts = {}; tracked.forEach(t => counts[t.status] = (counts[t.status] || 0) + 1);
+  counts.not_interested = Object.values(T.data.jobs).filter(t => t.status === "not_interested").length;
+  $("#stchips").innerHTML = STATUSES.map(([k, l]) => `<button class="stchip" data-st="${k}" aria-pressed="${stFilter.has(k)}">${esc(l)} ${counts[k] || 0}</button>`).join("");
+}
+$("#stchips").addEventListener("click", e => {
+  const b = e.target.closest("[data-st]"); if (!b) return;
+  stFilter.has(b.dataset.st) ? stFilter.delete(b.dataset.st) : stFilter.add(b.dataset.st);
+  page = 1; savePrefs(); render();
+});
+
+/* ───────────── detail drawer ───────────── */
+function openDetail(uid) {
+  selUid = uid;
+  document.querySelectorAll("#tbody tr.sel").forEach(r => r.classList.remove("sel"));
+  const row = document.querySelector(`#tbody tr[data-uid="${CSS.escape(uid)}"]`); if (row) row.classList.add("sel");
+  const j = BYUID[uid] || {...((T.data.jobs[uid] || {}).snap || {}), uid, categories: []};
+  drawDetail(j, j.d ? null : undefined);
+  $("#detail").classList.add("open"); $("#scrim").hidden = false; $("#detail").scrollTop = 0;
+  if (j.d) gh(`/contents/data/dashboard/details/${j.d}.json?ref=${encodeURIComponent(BRANCH)}`, {raw: true})
+    .then(t => JSON.parse(t)).catch(() => ({})).then(x => { if (selUid === uid) drawDetail(j, x, true); });
+}
+function closeDetail() { $("#detail").classList.remove("open"); $("#scrim").hidden = true; }
+$("#scrim").addEventListener("click", closeDetail);
+
+function trackHTML(uid) {
+  const t = T.data.jobs[uid] || {};
+  return `<section class="track" aria-label="Your application">
+    <h3>Your status</h3>
+    <div class="stbtns">${STATUSES.map(([k, l]) => `<button class="stbtn b-${k}" data-set="${k}" aria-pressed="${t.status === k}">${esc(l)}</button>`).join("")}
+      ${t.status ? `<button class="stbtn" data-set="">Clear</button>` : ""}</div>
+    <div class="trackgrid">
+      <label>Applied on<input type="date" data-field="applied_at" value="${esc(t.applied_at || "")}"></label>
+      <label>Follow up on<input type="date" data-field="follow_up" value="${esc(t.follow_up || "")}"></label>
+    </div>
+    <label class="small" style="display:block;margin-top:12px">Notes (referrals, recruiter names, interview dates, questions asked…)
+      <textarea data-field="notes" placeholder="e.g. Referred by Priya (USC ’25). Recruiter: Sam. OA due Oct 3.">${esc(t.notes || "")}</textarea></label>
+    ${(t.history || []).length ? `<ul class="hist">${t.history.slice().reverse().map(h => `<li>${esc(fmtDate(h.at))}: ${esc(ST_LABEL[h.status] || "Cleared")}</li>`).join("")}</ul>` : ""}
+  </section>`;
+}
+function drawDetail(j, extra, keepTrack) {
+  const s = spons(j), h = j.h1b;
+  const loc = (extra && extra.all_locations && extra.all_locations.length ? extra.all_locations : j.locations || []).join("; ") || "Not listed";
+  const ev = extra && extra.sponsorship_evidence;
+  const spPanel = j.categories ? `<div class="panel ${s.cls}"><h3>${esc(s.label)}</h3>
+    ${ev ? `<div class="small">From the job description:</div><p class="quote">${esc(ev)}</p>`
+         : `<div class="small">The job description doesn't mention sponsorship${j.has_desc ? "" : " (no description from this source; check the posting)"}.</div>`}
+    ${h ? `<p class="small" style="margin:10px 0 0">H-1B filings for tech roles (US Dept. of Labor): <b>${h.tech.toLocaleString()}</b>${h.entry ? `, ${h.entry.toLocaleString()} at entry wage levels` : ""}${h.name ? ` as “${esc(h.name)}”` : ""}.</p>` : ""}
+    ${j.community_label ? `<p class="small" style="margin:6px 0 0">Community list label: ${esc({no_sponsor: "does not sponsor", citizen: "citizenship required", sponsors: "offers sponsorship"}[j.community_label] || j.community_label)} (unverified).</p>` : ""}</div>` : "";
+  const matchPanel = j.match != null ? `<div class="panel"><h3>${j.match}% keyword match. Use your ${esc(j.resume)} resume.</h3>
+    ${(extra && extra.matched || []).length ? `<div class="small">On your resume</div><div class="skills">${extra.matched.map(x => `<span class="skill">${esc(x)}</span>`).join("")}</div>` : ""}
+    ${(j.missing || []).length ? `<div class="small" style="margin-top:8px">Asked for, not on your resume</div><div class="skills">${j.missing.map(x => `<span class="skill miss">${esc(x)}</span>`).join("")}</div>` : ""}</div>` : "";
+  const flags = [];
+  if (j.repost_of) flags.push(`Reposted. First seen ${fmtDate(j.repost_first_seen)} under an earlier posting that closed${j.prev_status ? `; your status then: ${ST_LABEL[j.prev_status]}` : ""}.`);
+  if (j.reopened_at) flags.push(`Reopened ${fmtDate(j.reopened_at)} after being taken down.`);
+  if (j.status === "closed") flags.push(`Posting closed ${fmtDate(j.closed_at)}.`);
+  const alt = (j.alt_urls || []).map((u, i) => `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">copy ${i + 2}</a>`).join(", ");
+  const trackEl = keepTrack && document.querySelector("#detail .track");
+  $("#detail").innerHTML = `<div class="d-wrap">
+    <div class="d-top"><div class="d-co">${esc(j.company || "")}</div><button class="btn small" id="closeD">Close</button></div>
+    <h2 class="d-title">${esc(j.title || j.uid)}</h2>
+    <div class="actions">${j.url ? `<a class="btn primary" href="${esc(j.url)}" target="_blank" rel="noopener noreferrer">Open application</a>` : ""}</div>
+    <div id="trackSlot"></div>
+    ${flags.length ? `<div class="panel warn">${flags.map(esc).join("<br>")}</div>` : ""}
+    <dl class="facts">
+      <dt>Location</dt><dd>${esc(loc)}</dd>
+      <dt>Posted</dt><dd>${j.posted_at ? esc(fmtDate(j.posted_at)) : "Unknown"}${j.first_seen ? ` (found ${esc(ago(j.first_seen))})` : ""}</dd>
+      <dt>Start date</dt><dd>${j.start === "fits" ? "Fits a June 2027 start" : j.start === "too_early" ? "Looks too early for a June 2027 start" : "Not stated. Ask the recruiter about a June 2027 start."}${extra && extra.start_evidence ? `: “${esc(extra.start_evidence)}”` : ""}</dd>
+      ${j.salary ? `<dt>Pay</dt><dd>${esc(j.salary)}</dd>` : ""}
+      ${j.min_years ? `<dt>Experience</dt><dd>${j.min_years}+ years${extra && extra.years_evidence ? `: “${esc(extra.years_evidence)}”` : ""}</dd>` : ""}
+      ${j.phd ? `<dt>Degree</dt><dd>PhD appears to be required</dd>` : ""}
+      ${extra && extra.employment ? `<dt>Type</dt><dd>${esc(extra.employment)}</dd>` : ""}
+      ${(j.categories || []).length ? `<dt>Role type</dt><dd>${esc(j.categories.join(", "))}</dd>` : ""}
+      ${(j.sources || []).length ? `<dt>Found via</dt><dd>${esc(j.sources.join(", "))}${alt ? `; also listed as ${alt}` : ""}</dd>` : ""}
+    </dl>
+    ${spPanel}${matchPanel}
+    ${extra && extra.description ? `<div class="desc">${esc(extra.description.replace(/\n{3,}/g, "\n\n"))}</div>`
+      : `<p class="small">${extra === null ? "Loading description…" : "No description was captured for this job. Open the application to read it."}</p>`}
+  </div>`;
+  // keep the tracking panel element (and any half-typed notes) when the description arrives
+  $("#trackSlot").replaceWith(trackEl || document.createRange().createContextualFragment(trackHTML(j.uid)));
+}
+$("#detail").addEventListener("click", e => {
+  if (e.target.id === "closeD") return closeDetail();
+  const b = e.target.closest("[data-set]"); if (!b || !selUid) return;
+  const cur = (T.data.jobs[selUid] || {}).status;
+  const next = b.dataset.set === cur ? "" : b.dataset.set;
+  setTrack(selUid, {status: next});
+  const slot = document.querySelector("#detail .track");
+  slot.replaceWith(document.createRange().createContextualFragment(trackHTML(selUid)));
+  render();
+});
+$("#detail").addEventListener("input", e => {
+  const f = e.target.dataset && e.target.dataset.field; if (!f || !selUid) return;
+  setTrack(selUid, {[f]: e.target.value});
+  if (f !== "notes") render();
+});
+
+/* ───────────── events ───────────── */
+$("#tbody").addEventListener("click", e => { const tr_ = e.target.closest("tr[data-uid]"); if (tr_) openDetail(tr_.dataset.uid); });
+function setTab(t) {
+  TAB = t; page = 1;
+  $("#tabJobs").setAttribute("aria-selected", t === "jobs"); $("#tabMine").setAttribute("aria-selected", t === "mine");
+  $("#fJobs").hidden = t !== "jobs"; $("#fMine").hidden = t !== "mine";
+  savePrefs(); render();
+}
+$("#tabJobs").addEventListener("click", () => setTab("jobs"));
+$("#tabMine").addEventListener("click", () => setTab("mine"));
+["q","q2","spons","age","region","prio","ng","hideEarly","hideTracked","showClosed","psize"].forEach(id =>
+  $("#" + id).addEventListener("input", () => { page = 1; savePrefs(); render(); }));
+document.querySelectorAll("#cats button").forEach(b => b.addEventListener("click", () => {
+  b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") !== "true"); page = 1; savePrefs(); render();
+}));
+function savePrefs() {
+  LS.set("prefs", {spons: $("#spons").value, age: $("#age").value, region: $("#region").value, psize: $("#psize").value,
+    prio: $("#prio").checked, ng: $("#ng").checked, hideEarly: $("#hideEarly").checked, hideTracked: $("#hideTracked").checked,
+    showClosed: $("#showClosed").checked, tab: TAB, sort: sortState, stFilter: [...stFilter],
+    cats: [...document.querySelectorAll("#cats button[aria-pressed=true]")].map(b => b.dataset.v)});
+}
+function restorePrefs() {
+  for (const id of ["spons","age","region","psize"]) if (prefs[id] != null) $("#" + id).value = prefs[id];
+  for (const id of ["prio","ng","hideEarly","hideTracked","showClosed"]) if (id in prefs) $("#" + id).checked = prefs[id];
+  if (prefs.cats) document.querySelectorAll("#cats button").forEach(b => b.setAttribute("aria-pressed", prefs.cats.includes(b.dataset.v)));
+}
+document.addEventListener("keydown", e => {
+  if (e.target.matches("input, select, textarea") || e.metaKey || e.ctrlKey || e.altKey || $("#app").hidden) return;
+  const psize = +$("#psize").value, slice = view.slice((page - 1) * psize, page * psize);
+  const uidOf = r => r.uid;
+  const idx = slice.findIndex(r => uidOf(r) === selUid);
+  const move = d => { const n = slice[Math.min(Math.max(idx + d, 0), slice.length - 1)]; if (n) { selUid = uidOf(n); render(); if ($("#detail").classList.contains("open")) openDetail(selUid); document.querySelector("#tbody tr.sel")?.scrollIntoView({block: "nearest"}); } };
+  const j = selUid && (BYUID[selUid] || (T.data.jobs[selUid] || {}).snap);
+  if (e.key === "j") move(1);
+  else if (e.key === "k") move(-1);
+  else if (e.key === "Enter" && selUid) openDetail(selUid);
+  else if (e.key === "o" && j && j.url) window.open(j.url, "_blank", "noopener,noreferrer");
+  else if (["s","a","x"].includes(e.key) && selUid) {
+    setTrack(selUid, {status: {s: "saved", a: "applied", x: "not_interested"}[e.key]});
+    render(); if ($("#detail").classList.contains("open")) openDetail(selUid);
+  }
+  else if (e.key === "ArrowRight") { page++; render(); }
+  else if (e.key === "ArrowLeft") { page--; render(); }
+  else if (e.key === "Escape") closeDetail();
+});
+$("#csv").addEventListener("click", () => {
+  const rows = [["company","title","status","applied_on","follow_up","last_update","location","url","notes"]];
+  for (const [uid, t] of Object.entries(T.data.jobs)) {
+    if (!t.status) continue;
+    const j = BYUID[uid] || t.snap || {};
+    rows.push([j.company, j.title, ST_LABEL[t.status], t.applied_at || "", t.follow_up || "", (t.updated_at || "").slice(0, 10), (j.locations || [])[0] || "", j.url, t.notes || ""]);
+  }
+  const csv = rows.map(r => r.map(x => `"${String(x ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], {type: "text/csv"})); a.download = `applications-${today()}.csv`; a.click();
+});
+$("#refresh").addEventListener("click", () => loadData(true));
+
+/* ───────────── boot ───────────── */
+async function loadData(isRefresh) {
+  $("#refresh").disabled = true;
+  try {
+    const [jobsText] = await Promise.all([
+      gh(`/contents/data/dashboard/jobs.json?ref=${encodeURIComponent(BRANCH)}`, {raw: true}),
+      isRefresh && !T.dirty && !T.saving ? fetchTracking().then(r => { T.sha = r.sha; T.data = r.data; }) : null
+    ]);
+    META = JSON.parse(jobsText); JOBS = META.jobs || []; BYUID = Object.fromEntries(JOBS.map(j => [j.uid, j]));
+    if (!Object.keys(REGIONS).length) for (const [name, words] of Object.entries(META.regions || {})) {
+      REGIONS[name] = new RegExp("\\b(" + words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") + ")\\b", "i");
+      $("#region").insertAdjacentHTML("beforeend", `<option>${esc(name)}</option>`);
+    }
+  } catch (e) {
+    if (e.status === 404) { META = {jobs: []}; JOBS = []; $("#headline").textContent = "No job data yet"; $("#sub").textContent = "Run the “Job tracker (hourly)” workflow once from the Actions tab."; }
+    else setSync(e.status === 401 ? "Token expired. Lock and unlock again." : "Couldn't load jobs.", true);
+  } finally { $("#refresh").disabled = false; }
+  render();
+}
+async function start() {
+  $("#gate").hidden = true; $("#app").hidden = false;
+  await loadTracking().catch(() => setSync("Couldn't load your statuses.", true));
+  restorePrefs();
+  if (prefs.region) $("#region").value = "";
+  await loadData(false);
+  if (prefs.region && REGIONS[prefs.region]) { $("#region").value = prefs.region; render(); }
+  setTab(prefs.tab === "mine" ? "mine" : "jobs");
+  setTimeout(() => LS.set("lastVisit", nowISO()), 5000);
+  setInterval(() => { if (document.visibilityState === "visible") loadData(true); }, 15 * 60 * 1000);
+}
+(async () => {
+  const c = creds();
+  if (!c) { $("#gRepo").value = LS.get("jr_repo_hint", ""); return; }
+  try { REPO = c.repo; TOKEN = c.token; const info = await gh(""); BRANCH = info.default_branch || "main"; await start(); }
+  catch (e) { $("#gRepo").value = c.repo; $("#gateErr").textContent = e.status === 401 ? "Saved token expired. Paste a new one." : "Couldn't reach GitHub. Check your connection."; }
+})();
+$("#gRepo").addEventListener("change", () => LS.set("jr_repo_hint", $("#gRepo").value.trim()));
+})();
+</script>
+</body>
+</html>

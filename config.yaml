@@ -1,0 +1,495 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Job tracker settings. Edit freely — every hourly run re-reads this file.
+#
+# Keyword entries are case-insensitive. A plain word/phrase is matched as a whole
+# word ("ml" will not match "html"). Anything containing regex symbols is used as a regex.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# A title must match at least one of these categories to be tracked.
+title_keywords:
+  ML:
+    - machine learning
+    - ml
+    - mle
+    - ai
+    - a\.i\.
+    - artificial intelligence
+    - deep learning
+    - llm
+    - llms
+    - genai
+    - generative
+    - nlp
+    - natural language
+    - applied scientist
+    - research engineer
+    - research scientist
+    - ml engineer
+    - inference
+    - model training
+    - foundation model
+    - reinforcement learning
+    # - data scientist        # uncomment to include data science roles
+  CV:
+    - computer vision
+    - vision
+    - perception
+    - imaging
+    - image
+    - video understanding
+    - 3d
+    - slam
+    - lidar
+    - sensor fusion
+    - autonomy
+    - autonomous
+    - robotics
+    - robot
+    - self-driving
+    - mapping
+    - localization
+  SDE:
+    - software engineer
+    - software engineering
+    - software developer
+    - software development
+    - sde
+    - swe
+    - backend
+    - back-end
+    - back end
+    - full stack
+    - full-stack
+    - fullstack
+    - platform engineer
+    - infrastructure engineer
+    - distributed systems
+    - systems software
+    - developer
+
+# The title must ALSO contain one of these role words (filters out "AI Sales Lead", "Data Mapping Analyst"...).
+role_words:
+  - engineer
+  - engineering
+  - developer
+  - scientist
+  - researcher
+  - research
+  - sde
+  - swe
+  - mle
+  - programmer
+  - member of technical staff
+  - mts
+  - resident
+  - residency
+
+# Titles containing any of these are dropped even if they matched above.
+title_exclude:
+  - sales
+  - account executive
+  - account manager
+  - recruiter
+  - recruiting
+  - talent
+  - marketing
+  - counsel
+  - attorney
+  - legal
+  - policy
+  - writer
+  - designer
+  - product manager
+  - program manager
+  - project manager
+  - customer
+  - support
+  - technician
+  - mechanical engineer
+  - electrical engineer
+  - business development
+  - clinical
+  - nurse
+  - teacher
+  - tutor
+  - annotator
+  - data labeling
+  - trainer               # "AI trainer" gig roles
+  - contract
+  - contractor
+  - part-time
+  - part time
+  - advocate
+  - evangelist
+  - developer relations
+  - solutions consultant
+
+level:
+  # Seniority words that remove a job.
+  exclude:
+    - senior
+    - sr
+    - sr\.
+    - staff
+    - principal
+    - lead
+    - manager
+    - director
+    - head of
+    - vp
+    - vice president
+    - distinguished
+    - fellow
+    - architect
+    - iii
+    - iv
+    - "\\bl[5-9]\\b"
+    - "level [3-9]"
+    - "(engineer|developer|scientist|sde|swe)\\s*(iii|iv|[3-9])\\b"
+    - intern
+    - internship
+    - interns
+    - co-op
+    - coop
+    - apprentice
+    - postdoc
+    - postdoctoral
+  # Words that mark a title as explicitly new-grad friendly (gets a ⭐ and sorts first).
+  newgrad_markers:
+    - new grad
+    - new graduate
+    - new college grad
+    - university grad
+    - university graduate
+    - college graduate
+    - graduate
+    - entry level
+    - entry-level
+    - early career
+    - early-career
+    - early in career
+    - junior
+    - associate
+    - "engineer i\\b"
+    - "engineer 1\\b"
+    - "\\bsde i\\b"
+    - "\\bsde 1\\b"
+    - "level 1"
+    - "2027"
+    - rotational
+    - residency
+    - "new grad 20\\d\\d"
+  # "Engineer II" is often 0–2 yrs at Google (L3) but 3+ yrs at Amazon. Keep it, but flag it.
+  flag_as_level_ii:
+    - ii
+    - "\\b2\\b"
+
+# ── When you can start ──
+# Jobs are classified from the title + description:
+#   fits      – says 2027 start / class of 2027 / graduation window that includes yours  → 📅 badge
+#   too_early – says 2025/2026 start, "start immediately", or a graduation window that
+#               ends before yours → no notification, hidden on the dashboard by default
+#   unknown   – no start date mentioned (most jobs; many hire new grads on a rolling basis) → kept
+start_date:
+  graduation: 2027-05       # your graduation month
+  earliest_start: 2027-06   # first month you can start full-time
+  notify_too_early: false   # set true to still get pinged for explicit too-early roles
+
+experience:
+  flag_min_years: 3   # show a ⏳ badge when the description asks for ≥ this many years
+  hide_min_years: 5   # hide the job entirely when every "N years" mention is ≥ this
+
+locations:
+  keep_remote: true    # "Remote" with no country → kept (flagged)
+  keep_unknown: true   # couldn't tell the country → kept (flagged)
+
+notifications:
+  # Channels are enabled by adding secrets in GitHub (see README). No secret = channel off.
+  seed_notify_hours: 48      # first scan of a new board: only ping jobs posted in the last N hours
+  max_jobs_per_run: 60       # safety cap so a bad run can't spam you
+  include_hidden: false
+
+workday:
+  # Workday boards can be huge, so we search instead of listing everything.
+  queries:
+    - new grad
+    - university graduate
+    - early career
+    - entry level
+    - machine learning
+    - computer vision
+    - software engineer
+    - ai engineer
+    - perception
+    - research engineer
+    - robotics
+    - backend engineer
+  max_results_per_query: 100  # 20 per page
+
+oracle:          # JPMorgan, Goldman (lateral), AmEx, Oracle, BNY… (searched like Workday)
+  max_results_per_query: 100
+eightfold:       # Microsoft, Qualcomm, Netflix, AmEx
+  max_results_per_query: 100
+
+amazon:
+  queries:
+    - machine learning
+    - computer vision
+    - applied scientist
+    - software development engineer university
+    - sde i
+    - software development engineer
+    - ai engineer
+    - perception
+    - robotics
+
+# ── Community GitHub lists (cover Google/Meta/Apple/Microsoft/TikTok new-grad roles, etc.) ──
+community_lists:
+  # Simplify-format JSON files (Simplify + forks)
+  json:
+    - https://raw.githubusercontent.com/SimplifyJobs/New-Grad-Positions/dev/.github/scripts/listings.json
+    - https://raw.githubusercontent.com/vanshb03/New-Grad-2027/dev/.github/scripts/listings.json
+  # Markdown-table READMEs (any repo whose README has | Company | Role | Location | ... | tables)
+  markdown:
+    - https://raw.githubusercontent.com/speedyapply/2027-AI-College-Jobs/main/NEW_GRAD_USA.md
+    - https://raw.githubusercontent.com/speedyapply/2027-SWE-College-Jobs/main/NEW_GRAD_USA.md
+    - https://raw.githubusercontent.com/jobright-ai/2026-Software-Engineer-New-Grad/master/README.md
+    - https://raw.githubusercontent.com/zapplyjobs/New-Grad-Software-Engineering-Positions/main/README.md
+    - https://raw.githubusercontent.com/zapplyjobs/New-Grad-Data-Science-Jobs-2026/main/README.md
+  # Used only by weekly discovery to learn more company names (internship posters hire new grads too).
+  discovery_only:
+    - https://raw.githubusercontent.com/SimplifyJobs/Summer2027-Internships/dev/.github/scripts/listings.json
+    - https://raw.githubusercontent.com/speedyapply/2027-AI-College-Jobs/main/README.md
+    - https://raw.githubusercontent.com/speedyapply/2027-SWE-College-Jobs/main/README.md
+    - https://raw.githubusercontent.com/jobright-ai/2026-Software-Engineer-Internship/master/README.md
+  max_age_days: 120    # ignore community listings older than this
+
+# ── Aggregators with free public APIs ──
+aggregators:
+  hn: true               # Hacker News "Who is hiring?" (startups; many sponsor)
+  themuse: true
+  themuse_pages: 10
+  remoteok: true
+  adzuna: true           # only runs if ADZUNA_APP_ID / ADZUNA_APP_KEY secrets exist (free signup)
+  adzuna_queries:
+    - machine learning engineer
+    - computer vision engineer
+    - new grad software engineer
+    - entry level software engineer
+    - ai engineer
+    - university graduate software engineer
+    - perception engineer
+    - robotics software engineer
+
+# ── Custom career sites without a feed, watched with a headless browser (Playwright) ──
+# Put your filters in the URL. link_pattern = regex that matches that site's individual job links.
+# Test with:  python -m tracker.sources.pagewatch --test
+career_pages:
+  - name: Google
+    urls:
+      - https://www.google.com/about/careers/applications/jobs/results/?location=United%20States&target_level=EARLY&q=%22machine%20learning%22&sort_by=date
+      - https://www.google.com/about/careers/applications/jobs/results/?location=United%20States&target_level=EARLY&q=%22software%20engineer%22&sort_by=date
+      - https://www.google.com/about/careers/applications/jobs/results/?location=United%20States&target_level=EARLY&q=%22computer%20vision%22&sort_by=date
+      - https://www.google.com/about/careers/applications/jobs/results/?location=United%20States&target_level=EARLY&q=%22research%20engineer%22&sort_by=date
+    link_pattern: "/jobs/results/\\d+"
+  - name: Meta
+    urls:
+      - https://www.metacareers.com/jobs?q=machine%20learning&offices[0]=North%20America
+      - https://www.metacareers.com/jobs?q=university%20grad
+      - https://www.metacareers.com/jobs?q=computer%20vision&offices[0]=North%20America
+      - https://www.metacareers.com/jobs?q=software%20engineer%20university
+    link_pattern: "/(jobs|job_details)/\\d+"
+  - name: Apple
+    urls:
+      - https://jobs.apple.com/en-us/search?location=united-states-USA&key=machine%2520learning&sort=newest
+      - https://jobs.apple.com/en-us/search?location=united-states-USA&key=computer%2520vision&sort=newest
+      - https://jobs.apple.com/en-us/search?location=united-states-USA&team=internships-STDNT-INTRN&key=graduate&sort=newest
+      - https://jobs.apple.com/en-us/search?location=united-states-USA&key=software%2520engineer%2520early%2520career&sort=newest
+    link_pattern: "/details/\\d+"
+  - name: Microsoft
+    urls:
+      - https://apply.careers.microsoft.com/careers?query=machine%20learning&location=United%20States&sort_by=timestamp
+      - https://apply.careers.microsoft.com/careers?query=software%20engineer%20university&location=United%20States&sort_by=timestamp
+      - https://apply.careers.microsoft.com/careers?query=computer%20vision&location=United%20States&sort_by=timestamp
+    link_pattern: "/careers/job/\\d+"
+  - name: TikTok
+    urls:
+      - https://lifeattiktok.com/search?keyword=machine%20learning%20graduate&location=CT_157
+      - https://lifeattiktok.com/search?keyword=software%20engineer%20graduate&location=CT_157
+      - https://lifeattiktok.com/search?keyword=computer%20vision&location=CT_157
+    link_pattern: "/search/\\d{10,}"
+  - name: Qualcomm
+    urls:
+      - https://careers.qualcomm.com/careers?query=machine%20learning&location=United%20States&sort_by=timestamp
+    link_pattern: "/careers/job/\\d+"
+  - name: Netflix
+    urls:
+      - https://explore.jobs.netflix.net/careers?query=machine%20learning&location=United%20States&sort_by=timestamp
+    link_pattern: "/careers/job/\\d+"
+  - name: AMD
+    urls:
+      - https://careers.amd.com/careers-home/jobs?keywords=machine%20learning&location=United%20States&sortBy=posted_date
+    link_pattern: "/careers-home/jobs/\\d+"
+  - name: Uber
+    urls:
+      - https://www.uber.com/us/en/careers/list/?query=machine%20learning&location=USA
+    link_pattern: "/careers/list/\\d+"
+  - name: Goldman Sachs    # campus / analyst roles live on higher.gs.com (lateral roles come via Oracle)
+    urls:
+      - https://higher.gs.com/results?EXPERIENCE_LEVEL=Analyst&LOCATION=Dallas|New%20York|Jersey%20City|Salt%20Lake%20City|San%20Francisco&page=1&sort=POSTED_DATE
+      - https://higher.gs.com/campus?type=students
+    link_pattern: "/roles/\\d+"
+  - name: ByteDance
+    urls:
+      - https://jobs.bytedance.com/en/position?keywords=machine%20learning&location=CT_1000,CT_157&project=7322364513776093449
+      - https://jobs.bytedance.com/en/position?keywords=graduate&location=CT_1000,CT_157
+    link_pattern: "/position/\\d+/detail"
+  - name: Tesla            # Tesla often blocks headless browsers; community lists still cover its new-grad roles
+    enabled: true
+    urls:
+      - https://www.tesla.com/careers/search/?query=machine%20learning&site=US
+      - https://www.tesla.com/careers/search/?query=autopilot&site=US
+    link_pattern: "/careers/search/job/[^/?#]+-\\d+"
+
+# ── Priority companies: 🔥 in notifications (listed first) and a "Top companies" filter on the dashboard ──
+# Matching is by name prefix, case-insensitive ("Google" also matches "Google DeepMind").
+priority_companies:
+  # FAANG+ / big tech
+  [Google, Meta, Apple, Amazon, Netflix, Microsoft, NVIDIA, Tesla, SpaceX, Uber, Airbnb, Stripe, Databricks,
+   Salesforce, Adobe, LinkedIn, Snap, Pinterest, Roblox, Qualcomm, AMD, Intel, Oracle, IBM, Palantir, Bloomberg,
+   TikTok, ByteDance, DoorDash, Lyft, Coinbase, Robinhood, Figma, Notion, Ramp, Plaid, Cloudflare, Datadog, Snowflake,
+  # AI labs & AI-native
+   OpenAI, Anthropic, xAI, Google DeepMind, Scale AI, Perplexity, Anysphere, Cursor, Mistral, Cohere, Character.AI,
+   Glean, Harvey, Sierra, Cognition, Together AI, Hugging Face, Runway, ElevenLabs, Physical Intelligence, Figure,
+  # Autonomy / robotics / computer vision
+   Waymo, Zoox, Nuro, Aurora, Applied Intuition, Motional, Hayden AI, Skydio, Anduril, Shield AI, Verkada, Samsara,
+   Wayve, Waabi, Kodiak, Tesla, Rivian, Boston Dynamics, Agility Robotics, Skild AI,
+  # Finance
+   JPMorgan, JP Morgan, Goldman Sachs, Morgan Stanley, Citi, Capital One, Bank of America, American Express,
+   Jane Street, Citadel, Two Sigma, Hudson River Trading, D. E. Shaw, Jump Trading]
+
+# Bay Area / region tags used by the dashboard's location filter
+regions:
+  Bay Area: [san francisco, sf bay, bay area, south san francisco, mountain view, palo alto, menlo park, sunnyvale,
+             santa clara, san jose, cupertino, redwood city, san mateo, foster city, oakland, berkeley, emeryville,
+             burlingame, san bruno, fremont, milpitas, los gatos]
+  Seattle: [seattle, bellevue, redmond, kirkland]
+  New York: [new york, nyc, brooklyn, manhattan, jersey city]
+  Los Angeles: [los angeles, santa monica, culver city, irvine, pasadena, el segundo, hawthorne, playa vista]
+  Remote: [remote]
+
+# ── Your profile: resume keyword matching (edit to match your resumes) ──
+profile:
+  resumes:
+    SDE:
+      - python
+      - go
+      - golang
+      - c++
+      - c#
+      - c
+      - sql
+      - javascript
+      - typescript
+      - rest
+      - rest apis
+      - graphql
+      - .net
+      - fastapi
+      - flask
+      - gorm
+      - rbac
+      - aws
+      - lambda
+      - s3
+      - aws batch
+      - cloudformation
+      - bedrock
+      - docker
+      - jenkins
+      - ci/cd
+      - infrastructure as code
+      - git
+      - postgresql
+      - postgres
+      - mysql
+      - mongodb
+      - opensearch
+      - elasticsearch
+      - backend
+      - microservices
+      - distributed systems
+      - data pipelines
+      - unit testing
+      - integration testing
+      - debugging
+      - profiling
+      - linux
+      - llm
+    ML/AI:
+      - python
+      - c++
+      - pytorch
+      - tensorflow
+      - opencv
+      - hugging face
+      - transformers
+      - scikit-learn
+      - numpy
+      - computer vision
+      - deep learning
+      - machine learning
+      - segmentation
+      - depth estimation
+      - object detection
+      - tracking
+      - perception
+      - autonomous driving
+      - llm
+      - llms
+      - rag
+      - retrieval
+      - vector database
+      - embeddings
+      - fine-tuning
+      - quantization
+      - langchain
+      - evaluation
+      - multimodal
+      - nlp
+      - aws
+      - bedrock
+      - docker
+      - sql
+      - fastapi
+      - data pipelines
+  # Tech terms the matcher should recognise even though they're not on your resumes (shown as "missing").
+  extra_vocab: [java, kotlin, scala, rust, ruby, php, swift, react, node.js, nodejs, angular, vue,
+    kubernetes, k8s, terraform, gcp, azure, spark, hadoop, kafka, airflow, flink, snowflake, redis,
+    dynamodb, cassandra, grpc, cuda, triton, tensorrt, jax, ros, slam, lidar, 3d, point cloud,
+    reinforcement learning, diffusion, mlops, spark, ray, onnx, verilog, embedded, android, ios,
+    javascript, html, css, bash, spring, django, kotlin, elixir, haskell, matlab, r, tableau]
+
+# Map company names to their legal H-1B filer names when they differ (lowercase, no punctuation).
+h1b_aliases:
+  meta: [metaplatforms]
+  google: [google]
+  amazon: [amazoncomservices, amazonwebservices, amazondevelopmentcenterus]
+  apple: [apple]
+  microsoft: [microsoft]
+  tiktok: [tiktok, bytedance]
+  waymo: [waymo]
+  openai: [openaiopco, openai]
+  anthropic: [anthropicpbc, anthropic]
+  nvidia: [nvidia]
+
+runtime:
+  # Tuned for GitHub Pro with a run every 3 hours: ~10–11.5 min per run × 8/day ≈ 2,600 of 3,000 min/month.
+  time_budget_minutes: 10   # browser work and re-checks stop when the run reaches this length
+  career_pages_every_n_runs: 1   # set 2 to scan Google/Meta/Apple… every 6 h instead (saves ~500 min/month)
+  workers: 32               # parallel requests
+  detail_workers: 24
+  career_page_details: 60   # max new job pages opened per career site per run
+  browser_descriptions: 80  # new jobs without an API description → opened in the browser (priority companies first)
+  browser_backfill: 60      # older jobs still missing a description, per run
+  recheck_per_run: 900      # partial-feed jobs whose posting is re-opened to detect closures (each job ≈ once a day)

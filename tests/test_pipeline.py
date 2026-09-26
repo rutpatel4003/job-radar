@@ -31,8 +31,9 @@ class World:
         self.sent = []
 
 
-def make_run(world, tmp):
+def make_run(world, tmp, ai=False):
     cfg = load_config()
+    cfg["ai_filter"]["enabled"] = ai
     cfg["career_pages"] = []
     cfg["community_lists"] = {"json": [], "markdown": []}
     cfg["aggregators"] = {"hn": False, "themuse": False, "remoteok": False, "adzuna": False}
@@ -195,6 +196,53 @@ def test_recheck_and_backfill():
     print("recheck/backfill test passed ✔")
 
 
+def test_ai_screening():
+    """The LLM's 'reject' hides a job from alerts/dashboard (kept reviewable); 'keep' adds a fit score."""
+    import os
+    from tracker import ai_filter
+    tmp = Path(tempfile.mkdtemp())
+    (tmp / "data").mkdir()
+    w = World()
+    go = make_run(w, tmp, ai=True)                 # AI screening is off by default; on just for this test
+    calls = []
+
+    class Resp:
+        status_code, ok = 200, True
+
+        def __init__(self, body):
+            self._b = body
+            self.text = json.dumps(body)
+
+        def json(self):
+            return self._b
+
+    def fake_post(url, **kw):
+        user = kw["json"]["messages"][1]["content"]
+        calls.append(kw["json"]["model"])
+        ids = [line.split(": ", 1)[1] for line in user.splitlines() if line.startswith("### id: ")]
+        res = [{"id": i, "verdict": "reject" if "gh:21" in i else "keep", "fit": 2 if "gh:21" in i else 5,
+                "level": "mid" if "gh:21" in i else "entry", "sponsorship": "unclear",
+                "reason": "requires 4 years of production experience" if "gh:21" in i else "new-grad CV role, strong fit"}
+               for i in ids]
+        return Resp({"choices": [{"message": {"content": json.dumps({"results": res})}}]})
+
+    w.boards["acme"] = [
+        gh(20, "Computer Vision Engineer", "Austin, TX", "Build perception with PyTorch and OpenCV. " * 10),
+        gh(21, "Machine Learning Engineer", "Austin, TX", "You will own models in production. " * 10)]
+    with mock.patch.dict(os.environ, {"GEMINI_API_KEY": "test"}), mock.patch.object(ai_filter.SESSION, "post", fake_post), \
+            mock.patch.object(run, "recent", lambda iso, h: True):
+        sent = go()
+    db = json.loads((tmp / "data" / "jobs.json").read_text())
+    assert db["gh:21"]["hidden"] and db["gh:21"]["ai_hidden"] and db["gh:21"]["ai"]["v"] == "reject"
+    assert db["gh:20"]["ai"]["fit"] == 5 and not db["gh:20"].get("hidden")
+    assert [t for _, t in sent] == ["Computer Vision Engineer"], sent      # rejected job not announced
+    dash = json.loads((tmp / "data" / "dashboard" / "jobs.json").read_text())
+    assert any(j["uid"] == "gh:21" and j.get("ai_hidden") for j in dash["jobs"])   # still reviewable
+    assert calls and len(calls) == 1                                        # both jobs in ONE request
+    print("ai screening test passed ✔")
+
+
 if __name__ == "__main__":
     test_pipeline()
     test_recheck_and_backfill()
+    test_ai_screening()

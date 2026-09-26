@@ -151,6 +151,12 @@ The dashboard has two tabs.
 
 Rows with yellow corner brackets are new since your last visit.
 
+**Dates:** the table is sorted by **Posted** (newest first), and the default filter is **Posted in last 24 h**.
+- Where a source gives no posting date, the tracker uses the time it found the job instead, shown with a "~". Scans run every 3 hours, so that's close to the real posting time.
+- Jobs from your very first scan with no posting date show "—" and never count as recent.
+- The Found column (when the tracker first saw a job) is still there if you want to sort by it.
+- Telegram also skips jobs whose posting date is more than 7 days old (`notifications.max_post_age_days`).
+
 **My applications** is your tracker. Status chips (with counts) filter the list. It is sortable by company, status, applied date, follow-up date, last update, and notes. Follow-ups that are due are highlighted. **Export CSV** downloads everything.
 
 **Opening a job** shows:
@@ -167,6 +173,17 @@ Rows with yellow corner brackets are new since your last visit.
 Jobs you track stay in your list even after the posting closes. If a company reposts a role you applied to or were rejected from, the alert says so. Roles you marked "Not interested" aren't re-announced when reposted.
 
 **Keyboard:** `j`/`k` move, `Enter` opens details, `o` opens the application, `s` save, `a` applied, `x` not interested, `←`/`→` change page, `Esc` close.
+
+## Optional: AI screening (off by default)
+
+`tracker/ai_filter.py` can have an LLM read each description and flag roles that aren't for you (too senior, not engineering, citizens-only, …) using the profile in `config.yaml → ai_filter`.
+
+LLMs make mistakes, so rejected jobs are never deleted. They're hidden behind a "Show AI-rejected" toggle, each with the AI's one-line reason.
+
+To try it:
+1. Get a free Google Gemini key at aistudio.google.com/apikey and save it as the `GEMINI_API_KEY` repository secret.
+2. Set `ai_filter.enabled: true` in `config.yaml`.
+3. Make sure `.github/workflows/track.yml` passes `GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}` in its `env:` block.
 
 ## Customizing
 

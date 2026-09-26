@@ -13,6 +13,7 @@ from .config import ROOT, env, load_companies, load_config
 from .export import export_dashboard, write_detail
 from .filters import (ResumeMatcher, TitleFilter, analyze_description, classify_start, fingerprint,
                       location_status, norm_company)
+from .ai_filter import AIFilter, compact
 from .h1b import H1B
 from .notify import notify
 from .ids import board_key
@@ -105,6 +106,11 @@ def main():
     boards_seen = set(state.get("boards_seen", []))
     dead = dict(state.get("dead_boards", {}))
     first_ever = store.is_empty()
+    if store.jobs and not any("seeded" in r for r in store.jobs.values()):
+        first_scan = min(r["first_seen"] for r in store.jobs.values())
+        for r in store.jobs.values():
+            r["seeded"] = r["first_seen"] == first_scan
+        store.dirty = True
     now = now_iso()
 
     # ── 1. Fetch everything in parallel (time-boxed) ──
@@ -341,6 +347,8 @@ def main():
         }
         if match:
             rec.update(match)
+        if item["seed"]:
+            rec["seeded"] = True          # part of an initial backlog: found time ≠ posting time
         if hidden_reason:
             rec["hidden"] = True
             rec["hidden_reason"] = hidden_reason
@@ -366,6 +374,70 @@ def main():
             seeded += 1
             continue
         events.append(("repost" if item["repost_of"] else "new", rec))
+
+    # ── 3d. AI screening of this run's new jobs (before deciding what to notify) ──
+    ai = AIFilter(cfg)
+    ai_hide = (cfg.get("ai_filter") or {}).get("hide_rejected", True)
+    ai_kept = ai_rejected = 0
+
+    def apply_ai(rec, v):
+        nonlocal ai_kept, ai_rejected
+        try:
+            fit = max(1, min(5, int(v.get("fit") or 3)))
+        except (TypeError, ValueError):
+            fit = 3
+        rec["ai"] = {"v": v["verdict"], "fit": fit, "why": str(v.get("reason") or "")[:140],
+                     "level": v.get("level"), "at": now[:10], "model": v.get("model")}
+        sp = v.get("sponsorship")
+        if rec.get("sponsorship", "unknown") == "unknown" and sp in ("no", "citizens_only"):
+            rec["sponsorship"] = "citizen" if sp == "citizens_only" else "no_sponsor"
+            rec["sponsorship_src"] = "ai"
+        if v["verdict"] == "reject":
+            ai_rejected += 1
+            if ai_hide and not rec.get("hidden"):
+                rec["hidden"], rec["hidden_reason"], rec["ai_hidden"] = True, "AI: " + rec["ai"]["why"], True
+        else:
+            ai_kept += 1
+            if rec.get("ai_hidden"):
+                for k in ("hidden", "hidden_reason", "ai_hidden"):
+                    rec.pop(k, None)
+        store.dirty = True
+
+    if ai.enabled and not args.dry_run:
+        batch = []
+        for uid, item in pending.items():
+            rec = store.jobs.get(uid)
+            text = item["job"].description or ""
+            if rec and not rec.get("hidden") and len(text) > 200:
+                batch.append({"id": uid, "title": rec["title"], "company": rec["company"],
+                              "location": "; ".join(rec.get("locations") or [])[:120], "text": compact(text)})
+        batch.sort(key=lambda j: not store.jobs[j["id"]].get("priority"))
+        for jid, v in ai.screen(batch, deadline - 150).items():
+            if jid in store.jobs:
+                apply_ai(store.jobs[jid], v)
+        events = [(e, r) for e, r in events if not r.get("ai_hidden")]
+
+    # ── 3c. Re-apply today's filters to jobs saved earlier (e.g. after editing config.yaml) ──
+    hide_years = cfg.get("experience", {}).get("hide_min_years", 5)
+    refiltered = restored = 0
+    for r in store.jobs.values():
+        if r["status"] != "open" or r["uid"] in pending:
+            continue
+        keep = tf.evaluate(r["title"])[0] or r.get("source") == "hn"
+        years = r.get("min_years") or 0
+        reason = None if keep and years < hide_years else \
+            ("no longer matches your title/level filters" if not keep else f"asks for {years}+ years")
+        if reason and not r.get("hidden"):
+            r["hidden"], r["hidden_reason"], r["auto_hidden"] = True, reason, True
+            store.dirty = True
+            refiltered += 1
+        elif not reason and r.get("auto_hidden"):
+            for k in ("hidden", "hidden_reason", "auto_hidden"):
+                r.pop(k, None)
+            store.dirty = True
+            restored += 1
+    if refiltered or restored:
+        print(f"[filters] hid {refiltered} saved jobs that no longer match your settings, restored {restored}")
 
     # ── 4. Closed-job detection ──
     closed = 0
@@ -482,6 +554,33 @@ def main():
                 filled += 1
             print(f"[browser] back-filled descriptions for {filled} older jobs")
 
+    # ── 4d. AI screening of earlier jobs (backlog), newest postings and top companies first ──
+    if ai.enabled and not args.dry_run and not ai.stopped and time.time() < deadline - 45:
+        todo = [r for r in store.jobs.values()
+                if r["status"] == "open" and not r.get("hidden") and r.get("has_desc") and r.get("d")
+                and "ai" not in r and r["uid"] not in pending]
+        todo.sort(key=lambda r: (not r.get("priority"), -(datetime.fromisoformat(
+            (r.get("posted_at") or r["first_seen"]).replace("Z", "+00:00")).timestamp()
+            if (r.get("posted_at") or r["first_seen"])[:4].isdigit() else 0)))
+        batch = []
+        for r in todo[: ai.per_req * max(0, ai.max_req - ai.requests)]:
+            try:
+                d = json.loads((DATA / "dashboard" / "details" / f"{r['d']}.json").read_text())
+            except Exception:
+                continue
+            if len(d.get("description") or "") > 200:
+                batch.append({"id": r["uid"], "title": r["title"], "company": r["company"],
+                              "location": "; ".join(r.get("locations") or [])[:120],
+                              "text": compact(d["description"])})
+        for jid, v in ai.screen(batch, deadline - 20).items():
+            if jid in store.jobs:
+                apply_ai(store.jobs[jid], v)
+    if ai.enabled:
+        print(f"[ai] {ai.requests} requests: kept {ai_kept}, rejected {ai_rejected}"
+              + (f" (stopped: {ai.stopped})" if ai.stopped else ""))
+    elif (cfg.get("ai_filter") or {}).get("enabled"):
+        print("[ai] enabled in config.yaml but no GEMINI_API_KEY secret found, so skipped")
+
     # ── 5. Save, export, notify ──
     new_boards = {r.board for r in ok} - boards_seen
     print(f"[result] {stats['relevant']} new relevant, {stats['merged']} merged duplicates, "
@@ -503,6 +602,10 @@ def main():
 
     if args.no_notify:
         return
+    max_age = ncfg.get("max_post_age_days")
+    if max_age:
+        events = [(e, r) for e, r in events
+                  if e != "new" or not r.get("posted_at") or recent(r["posted_at"], 24 * float(max_age))]
     events.sort(key=lambda e: (not e[1].get("priority"), "newgrad" not in e[1].get("tags", []),
                                e[1].get("start") != "fits", e[1]["company"].lower()))
     cap = ncfg.get("max_jobs_per_run", 60)

@@ -119,6 +119,13 @@ title_exclude:
   - contractor
   - part-time
   - part time
+  - it engineer
+  - it support
+  - it specialist
+  - it analyst
+  - help desk
+  - helpdesk
+  - desktop support
   - advocate
   - evangelist
   - developer relations
@@ -179,7 +186,8 @@ level:
     - rotational
     - residency
     - "new grad 20\\d\\d"
-  # "Engineer II" is often 0–2 yrs at Google (L3) but 3+ yrs at Amazon. Keep it, but flag it.
+  # "Engineer II" / "SDE 2" titles usually want 2–5 years. Dropped unless the title also says new grad / university.
+  exclude_level_ii: true
   flag_as_level_ii:
     - ii
     - "\\b2\\b"
@@ -196,17 +204,42 @@ start_date:
   notify_too_early: false   # set true to still get pinged for explicit too-early roles
 
 experience:
-  flag_min_years: 3   # show a ⏳ badge when the description asks for ≥ this many years
-  hide_min_years: 5   # hide the job entirely when every "N years" mention is ≥ this
+  # You're 0–2 years. "N years" mentions offered as an alternative to a degree
+  # ("3+ years OR a Master's") are ignored, so MS-friendly roles aren't hidden.
+  flag_min_years: 2   # show a ⏳ badge when the description asks for ≥ this many years
+  hide_min_years: 3   # hide the job when the description asks for ≥ this many years
 
 locations:
   keep_remote: true    # "Remote" with no country → kept (flagged)
   keep_unknown: true   # couldn't tell the country → kept (flagged)
 
+# ── AI screening — OFF by default ──
+# Optional: an LLM reads each job description and rejects roles that aren't for you. LLMs can be wrong,
+# so rejected jobs are never deleted: a dashboard toggle shows them with the AI's reason.
+# To try it: set enabled: true AND add a free Google Gemini key as the GEMINI_API_KEY repository secret.
+ai_filter:
+  enabled: false
+  base_url: https://generativelanguage.googleapis.com/v1beta/openai   # any OpenAI-compatible API works
+  model: gemini-flash-lite-latest
+  fallback_models: [gemini-2.5-flash-lite]
+  api_key_env: GEMINI_API_KEY
+  jobs_per_request: 6             # several jobs graded per request to stretch the free quota
+  max_requests_per_run: 40        # 8 runs/day × 40 = 320 requests/day (free Flash-Lite ≈ 500/day)
+  requests_per_minute: 10
+  hide_rejected: true
+  profile: |
+    MS in Computer Science at USC, graduating May 2027; can start full-time in June 2027 or later.
+    0–2 years of experience (internships only: backend in Go/C#/.NET, AWS data pipelines, ML/computer vision).
+    Targets new-grad / entry-level software engineering, backend, ML/AI engineering, and computer vision /
+    perception roles anywhere in the United States (open to relocation).
+    On F-1 visa: will need H-1B sponsorship later, so citizenship-only or clearance roles are impossible.
+    Skills: Python, Go, C++, C#, SQL, TypeScript, PyTorch, OpenCV, Hugging Face, LLMs/RAG, AWS, Docker, PostgreSQL.
+
 notifications:
   # Channels are enabled by adding secrets in GitHub (see README). No secret = channel off.
   seed_notify_hours: 48      # first scan of a new board: only ping jobs posted in the last N hours
   max_jobs_per_run: 60       # safety cap so a bad run can't spam you
+  max_post_age_days: 7       # don't ping for jobs whose posting date is older than this (found late)
   include_hidden: false
 
 workday:

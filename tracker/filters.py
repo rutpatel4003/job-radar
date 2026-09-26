@@ -17,6 +17,7 @@ class TitleFilter:
         self.level_exclude = compile_terms(lvl.get("exclude"))
         self.newgrad = compile_terms(lvl.get("newgrad_markers"))
         self.level_ii = compile_terms(lvl.get("flag_as_level_ii"))
+        self.exclude_level_ii = bool(lvl.get("exclude_level_ii"))
 
     @staticmethod
     def _norm(title):
@@ -43,6 +44,8 @@ class TitleFilter:
         if any(p.search(t) for p in self.newgrad):
             tags.append("newgrad")
         if any(p.search(t) for p in self.level_ii):
+            if self.exclude_level_ii and "newgrad" not in tags:
+                return False, cats, []
             tags.append("level2")
         return True, cats, tags
 
@@ -172,6 +175,8 @@ _NO = [re.compile(p, re.I) for p in NO_SPONSOR]
 _CIT = [re.compile(p, re.I) for p in CITIZEN]
 _YES = [re.compile(p, re.I) for p in SPONSORS]
 _YEARS = re.compile(r"(\d{1,2})\s*(?:\+|or more|plus)?\s*(?:-|–|to)?\s*(?:\d{1,2})?\s*\+?\s*(?:years|yrs)", re.I)
+_DEGREE_ALT = re.compile(r"\bor\b[^.;\n]{0,50}\b(master'?s?|m\.?s\.?|m\.?eng|ph\.?\s?d|graduate|advanced)\b", re.I)
+_DEGREE_FIRST = re.compile(r"\b(master'?s?|m\.?s\.?|ph\.?\s?d|graduate degree|advanced degree)\b[^.;\n]{0,60}\b(or|and|with|plus)\s*$", re.I)
 _PHD_REQ = re.compile(r"(ph\.?\s?d\.?)[^.\n]{0,40}(required|is a must)|(require[sd]?|must\s+have|minimum)[^.\n]{0,80}ph\.?\s?d", re.I)
 
 
@@ -220,6 +225,9 @@ def analyze_description(text):
     for m in _YEARS.finditer(t):
         window = t[m.start(): m.end() + 80]
         before = t[max(0, m.start() - 30): m.start()]
+        wide_before = t[max(0, m.start() - 90): m.start()]
+        if _DEGREE_ALT.search(window) or _DEGREE_FIRST.search(wide_before):
+            continue                      # "3+ years or a Master's" / "PhD, or MS with 2 years" → degree path open
         if "experience" in window.lower() or "experience" in before.lower():
             try:
                 n = int(m.group(1))

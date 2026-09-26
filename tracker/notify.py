@@ -27,6 +27,8 @@ def badges(r):
         n = r["h1b"].get("tech", 0)
         out.append(f"🟢 H-1B history: {n:,} tech filings" if n >= 20 else
                    f"🟡 little H-1B history ({n})" if n else "⚪ no H-1B filings found")
+    if r.get("ai"):
+        out.append(f"🤖 fit {r['ai']['fit']}/5: {r['ai']['why']}")
     if r.get("match") is not None:
         out.append(f"🎯 {r['match']}% match ({r.get('resume')})")
     if r.get("salary"):

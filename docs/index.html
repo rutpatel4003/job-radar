@@ -99,6 +99,7 @@ tbody tr{border-bottom:1px solid var(--rule);cursor:pointer;position:relative}
 tbody tr:hover{background:var(--hover)}
 tbody tr.sel{background:var(--sel)}
 tbody tr.closed .role{text-decoration:line-through;text-decoration-color:var(--muted)}
+tbody tr.airej{opacity:.62}
 td{padding:10px 10px;vertical-align:top;font-size:14.5px}
 td.muted{color:var(--muted);font-size:13.5px;white-space:nowrap}
 td .co{font-weight:800}
@@ -244,9 +245,9 @@ td.fresh::after{bottom:4px;left:2px;border-width:0 0 3px 3px}
       <option value="nohard" selected>Hide “no sponsorship” &amp; citizens-only</option>
       <option value="likely">Likely sponsors only</option>
     </select>
-    <select id="age" aria-label="Found within">
-      <option value="24">Found in last 24 h</option><option value="72">Last 3 days</option>
-      <option value="168" selected>Last 7 days</option><option value="720">Last 30 days</option><option value="0">Any time</option>
+    <select id="age" aria-label="Posted within">
+      <option value="24" selected>Posted in last 24 h</option><option value="72">Posted in last 3 days</option>
+      <option value="168">Posted in last 7 days</option><option value="720">Posted in last 30 days</option><option value="0">Posted any time</option>
     </select>
     <select id="region" aria-label="Location"><option value="">Anywhere in the US</option></select>
     <label class="toggle"><input type="checkbox" id="prio"> Top companies</label>
@@ -254,6 +255,7 @@ td.fresh::after{bottom:4px;left:2px;border-width:0 0 3px 3px}
     <label class="toggle"><input type="checkbox" id="hideEarly" checked> Hide starts before June 2027</label>
     <label class="toggle"><input type="checkbox" id="hideTracked" checked> Hide jobs I’m tracking</label>
     <label class="toggle"><input type="checkbox" id="showClosed"> Show closed</label>
+    <label class="toggle"><input type="checkbox" id="showAi"> Show AI-rejected</label>
     </div>
   </div>
 
@@ -352,8 +354,9 @@ $("#lock").addEventListener("click", lock);
 let JOBS = [], BYUID = {}, META = {}, REGIONS = {};
 let TAB = "jobs", view = [], page = 1, selUid = null;
 const lastVisit = LS.get("lastVisit", null);
-const prefs = LS.get("prefs", {});
-const sortState = prefs.sort || {jobs: {key: "found", dir: "desc"}, mine: {key: "updated", dir: "desc"}};
+const PREFS_VERSION = 2;
+const prefs = (p => p.v === PREFS_VERSION ? p : {tab: p.tab, stFilter: p.stFilter})(LS.get("prefs", {}));
+const sortState = prefs.sort || {jobs: {key: "posted", dir: "desc"}, mine: {key: "updated", dir: "desc"}};
 let stFilter = new Set(prefs.stFilter || []);
 
 /* ───────────── tracking (statuses + notes), synced to data/tracking.json ───────────── */
@@ -439,14 +442,17 @@ const fmtDate = iso => iso ? new Date(iso).toLocaleString([], {month: "short", d
 const fmtDay = d => d ? new Date(d + (d.length === 10 ? "T12:00:00" : "")).toLocaleDateString([], {month: "short", day: "numeric", year: "numeric"}) : "—";
 function spons(j) {
   const n = j.h1b ? j.h1b.tech : null;
-  if (j.sponsorship === "citizen") return {cls: "bad", label: "Citizens / clearance", level: "hard", rank: 4};
-  if (j.sponsorship === "no_sponsor") return {cls: "bad", label: "No sponsorship", level: "hard", rank: 3};
+  if (j.sponsorship === "citizen") return {cls: "bad", label: j.sponsorship_src === "ai" ? "Citizens only (AI)" : "Citizens / clearance", level: "hard", rank: 4};
+  if (j.sponsorship === "no_sponsor") return {cls: "bad", label: j.sponsorship_src === "ai" ? "No sponsorship (AI)" : "No sponsorship", level: "hard", rank: 3};
   if (j.sponsorship === "sponsors") return {cls: "good", label: "Sponsors (per JD)", level: "likely", rank: 0};
   if (n >= 20) return {cls: "good", label: `H-1B history ${n.toLocaleString()}`, level: "likely", rank: 1};
   if (n > 0) return {cls: "warn", label: `Few H-1B filings (${n})`, level: "maybe", rank: 2};
   if (n === 0) return {cls: "", label: "No H-1B record", level: "maybe", rank: 2.5};
   return {cls: "", label: "Sponsorship unknown", level: "maybe", rank: 2};
 }
+// Posting date. If a source doesn't give one, use when the tracker found the job, since scans run every 3 h,
+// except for jobs from a first scan (backlog), whose found time says nothing about when they were posted.
+const postedOf = j => j.posted_at || (j.seeded ? null : j.first_seen);
 const locOf = j => ((j.locations || [])[0] || (j.loc_status === "remote" ? "Remote" : "—")) + ((j.locations || []).length > 1 ? ` +${j.locations.length - 1}` : "");
 
 /* ───────────── columns + sorting ───────────── */
@@ -455,10 +461,10 @@ const COLS = {
     {key: "company", label: "Company", cls: "c-co", sort: j => j.company.toLowerCase()},
     {key: "title", label: "Role", cls: "c-role", sort: j => j.title.toLowerCase()},
     {key: "location", label: "Location", cls: "", sort: j => locOf(j).toLowerCase()},
-    {key: "posted", label: "Posted", cls: "c-hide-m", sort: j => j.posted_at || ""},
-    {key: "found", label: "Found", cls: "", sort: j => j.first_seen || ""},
+    {key: "posted", label: "Posted", cls: "", sort: j => postedOf(j) || ""},
+    {key: "found", label: "Found", cls: "c-hide-m", sort: j => j.first_seen || ""},
     {key: "spons", label: "Sponsorship", cls: "c-hide-m", sort: j => spons(j).rank},
-    {key: "match", label: "Match", cls: "c-hide-m", sort: j => j.match ?? -1},
+    {key: "match", label: "Fit", cls: "c-hide-m", sort: j => (j.ai ? j.ai.fit * 1000 : 0) + (j.match ?? 0)},
     {key: "status", label: "Status", cls: "", sort: j => tr(j.uid) ? ST_ORDER[tr(j.uid).status] : 99},
   ],
   mine: [
@@ -502,18 +508,20 @@ function jobRows() {
   const cats = new Set([...document.querySelectorAll("#cats button[aria-pressed=true]")].map(b => b.dataset.v));
   const sp = $("#spons").value, maxAge = +$("#age").value, ng = $("#ng").checked, pr = $("#prio").checked;
   const hideE = $("#hideEarly").checked, hideT = $("#hideTracked").checked, showC = $("#showClosed").checked;
+  const showAi = $("#showAi").checked;
   const rx = REGIONS[$("#region").value];
   return JOBS.filter(j => {
     const t = tr(j.uid);
     if (t && t.status === "not_interested") return false;
     if (hideT && t) return false;
+    if (j.ai_hidden && !showAi) return false;
     if (!showC && j.status === "closed") return false;
     if (!(j.categories || []).some(c => cats.has(c))) return false;
     if (ng && !(j.tags || []).includes("newgrad")) return false;
     if (pr && !j.priority) return false;
     if (hideE && j.start === "too_early") return false;
     if (rx && !rx.test((j.locations || []).join(" | ") + (j.loc_status === "remote" ? " remote" : ""))) return false;
-    if (maxAge && hoursAgo(j.first_seen) > maxAge) return false;
+    if (maxAge && hoursAgo(postedOf(j)) > maxAge) return false;
     const s = spons(j);
     if (sp === "nohard" && s.level === "hard") return false;
     if (sp === "likely" && s.level !== "likely") return false;
@@ -534,6 +542,7 @@ function mineRows() {
 /* ───────────── rendering ───────────── */
 function chipsFor(j) {
   const c = [];
+  if (j.ai_hidden) c.push(`<span class="chip bad">AI rejected: ${esc(j.ai.why)}</span>`);
   if (j.priority) c.push(`<span class="chip star">Top company</span>`);
   if ((j.tags || []).includes("newgrad")) c.push(`<span class="chip star">New grad</span>`);
   if (j.start === "fits") c.push(`<span class="chip good">2027 start</span>`);
@@ -547,14 +556,14 @@ function chipsFor(j) {
 const stHTML = s => s ? `<span class="st st-${s}">${esc(ST_LABEL[s])}</span>` : `<span class="small">—</span>`;
 function rowJobs(j) {
   const s = spons(j), t = tr(j.uid), fresh = lastVisit && j.first_seen > lastVisit;
-  return `<tr data-uid="${esc(j.uid)}" class="${j.status === "closed" ? "closed" : ""}${j.uid === selUid ? " sel" : ""}">
+  return `<tr data-uid="${esc(j.uid)}" class="${j.status === "closed" ? "closed" : ""}${j.ai_hidden ? " airej" : ""}${j.uid === selUid ? " sel" : ""}">
     <td class="c-co${fresh ? " fresh" : ""}" style="padding-left:16px"><span class="co">${esc(j.company)}</span></td>
     <td class="c-role"><div class="role">${esc(j.title)}</div><div class="chips">${chipsFor(j)}</div></td>
     <td class="muted">${esc(locOf(j))}</td>
-    <td class="muted c-hide-m">${ago(j.posted_at)}</td>
-    <td class="muted">${ago(j.first_seen)}</td>
+    <td class="muted" title="${j.posted_at ? "" : j.seeded ? "Posting date unknown" : "Posting date unknown; found by the tracker at this time"}">${j.posted_at ? ago(j.posted_at) : j.seeded ? "—" : "~" + ago(j.first_seen)}</td>
+    <td class="muted c-hide-m">${ago(j.first_seen)}</td>
     <td class="c-hide-m"><span class="chip ${s.cls}">${esc(s.label)}</span></td>
-    <td class="muted c-hide-m">${j.match != null ? `${j.match}% ${esc(j.resume)}` : "—"}</td>
+    <td class="muted c-hide-m">${j.ai ? `<span class="chip ${j.ai.v === "reject" ? "bad" : j.ai.fit >= 4 ? "good" : ""}">AI ${j.ai.fit}/5</span> ` : ""}${j.match != null ? `${j.match}% ${esc(j.resume)}` : (j.ai ? "" : "—")}</td>
     <td class="${t ? "" : "st-empty"}">${stHTML(t && t.status)}</td></tr>`;
 }
 function rowMine(r) {
@@ -591,8 +600,9 @@ function render() {
   $("#headline").innerHTML = lastVisit
     ? (fresh ? `<span class="n">${fresh}</span> new role${fresh === 1 ? "" : "s"} since ${esc(fmtDate(lastVisit))}` : `Nothing new since ${esc(fmtDate(lastVisit))}`)
     : `${(META.open || 0).toLocaleString()} open roles to go through`;
+  const day = JOBS.filter(j => j.status === "open" && !j.ai_hidden && hoursAgo(postedOf(j)) <= 24).length;
   const act = ["applied","oa","interviewing","offer"].reduce((n, s) => n + tracked.filter(t => t.status === s).length, 0);
-  $("#sub").textContent = `${(META.open || 0).toLocaleString()} open roles from ${(META.boards || 0).toLocaleString()} company boards plus community lists. Data changed ${ago(META.generated_at)}. ${act} active application${act === 1 ? "" : "s"}.`;
+  $("#sub").textContent = `${day.toLocaleString()} posted in the last 24 h. ${(META.open || 0).toLocaleString()} open roles from ${(META.boards || 0).toLocaleString()} company boards plus community lists. Data changed ${ago(META.generated_at)}. ${act} active application${act === 1 ? "" : "s"}.`;
   renderStChips(tracked);
 }
 function pagerHTML(p, n) {
@@ -680,6 +690,9 @@ function drawDetail(j, extra, keepTrack) {
       ${(j.categories || []).length ? `<dt>Role type</dt><dd>${esc(j.categories.join(", "))}</dd>` : ""}
       ${(j.sources || []).length ? `<dt>Found via</dt><dd>${esc(j.sources.join(", "))}${alt ? `; also listed as ${alt}` : ""}</dd>` : ""}
     </dl>
+    ${j.ai ? `<div class="panel ${j.ai.v === "reject" ? "bad" : j.ai.fit >= 4 ? "good" : ""}"><h3>AI screening: ${j.ai.v === "reject" ? "not for you" : "keep"}, fit ${j.ai.fit}/5</h3>
+      <div class="small">${esc(j.ai.why)}${j.ai.level ? ` · level: ${esc(j.ai.level)}` : ""}. Checked ${esc(j.ai.at)}${j.ai.model ? ` by ${esc(j.ai.model)}` : ""}.
+      ${j.ai.v === "reject" ? " If this is wrong, set a status (e.g. Saved) to keep the job in your list." : ""}</div></div>` : ""}
     ${spPanel}${matchPanel}
     ${extra && extra.description ? `<div class="desc">${esc(extra.description.replace(/\n{3,}/g, "\n\n"))}</div>`
       : `<p class="small">${extra === null ? "Loading description…" : "No description was captured for this job. Open the application to read it."}</p>`}
@@ -713,20 +726,20 @@ function setTab(t) {
 }
 $("#tabJobs").addEventListener("click", () => setTab("jobs"));
 $("#tabMine").addEventListener("click", () => setTab("mine"));
-["q","q2","spons","age","region","prio","ng","hideEarly","hideTracked","showClosed","psize"].forEach(id =>
+["q","q2","spons","age","region","prio","ng","hideEarly","hideTracked","showClosed","showAi","psize"].forEach(id =>
   $("#" + id).addEventListener("input", () => { page = 1; savePrefs(); render(); }));
 document.querySelectorAll("#cats button").forEach(b => b.addEventListener("click", () => {
   b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") !== "true"); page = 1; savePrefs(); render();
 }));
 function savePrefs() {
-  LS.set("prefs", {spons: $("#spons").value, age: $("#age").value, region: $("#region").value, psize: $("#psize").value,
+  LS.set("prefs", {v: PREFS_VERSION, spons: $("#spons").value, age: $("#age").value, region: $("#region").value, psize: $("#psize").value,
     prio: $("#prio").checked, ng: $("#ng").checked, hideEarly: $("#hideEarly").checked, hideTracked: $("#hideTracked").checked,
-    showClosed: $("#showClosed").checked, tab: TAB, sort: sortState, stFilter: [...stFilter],
+    showClosed: $("#showClosed").checked, showAi: $("#showAi").checked, tab: TAB, sort: sortState, stFilter: [...stFilter],
     cats: [...document.querySelectorAll("#cats button[aria-pressed=true]")].map(b => b.dataset.v)});
 }
 function restorePrefs() {
   for (const id of ["spons","age","region","psize"]) if (prefs[id] != null) $("#" + id).value = prefs[id];
-  for (const id of ["prio","ng","hideEarly","hideTracked","showClosed"]) if (id in prefs) $("#" + id).checked = prefs[id];
+  for (const id of ["prio","ng","hideEarly","hideTracked","showClosed","showAi"]) if (id in prefs) $("#" + id).checked = prefs[id];
   if (prefs.cats) document.querySelectorAll("#cats button").forEach(b => b.setAttribute("aria-pressed", prefs.cats.includes(b.dataset.v)));
 }
 document.addEventListener("keydown", e => {
@@ -770,6 +783,7 @@ async function loadData(isRefresh) {
       isRefresh && !T.dirty && !T.saving ? fetchTracking().then(r => { T.sha = r.sha; T.data = r.data; }) : null
     ]);
     META = JSON.parse(jobsText); JOBS = META.jobs || []; BYUID = Object.fromEntries(JOBS.map(j => [j.uid, j]));
+    $("#showAi").closest("label").hidden = !JOBS.some(j => j.ai);
     if (!Object.keys(REGIONS).length) for (const [name, words] of Object.entries(META.regions || {})) {
       REGIONS[name] = new RegExp("\\b(" + words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") + ")\\b", "i");
       $("#region").insertAdjacentHTML("beforeend", `<option>${esc(name)}</option>`);

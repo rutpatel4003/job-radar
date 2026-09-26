@@ -9,20 +9,21 @@ permissions:
   contents: write
 
 concurrency:
-  group: job-tracker-writes
+  group: job-tracker-h1b
   cancel-in-progress: false
 
 jobs:
   h1b:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # pinned: Playwright's system deps target 24.04
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install requests PyYAML openpyxl
+      - run: pip install -q requests PyYAML openpyxl playwright
+      - run: python -m playwright install --with-deps chromium   # fallback if dol.gov blocks plain scripts
       - run: python -m tracker.h1b
       - name: Save
         run: |

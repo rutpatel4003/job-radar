@@ -10,30 +10,101 @@ Output: {normalized_employer: [tech_filings, entry_level_tech_filings, total_fil
  - entry_level_tech:    of those, prevailing-wage level I or II (typical new-grad levels)
 """
 import json
+import os
 import re
 import sys
 import tempfile
 from collections import defaultdict
+from datetime import date
 
 from .config import ROOT
 from .filters import norm_company
 from .http import SESSION
 
 PAGE = "https://www.dol.gov/agencies/eta/foreign-labor/performance"
-LINK = re.compile(r'href="([^"]*LCA_Disclosure_Data_FY(\d{4})_Q(\d)[^"]*\.xlsx)"', re.I)
+FILE = "https://www.dol.gov/sites/dolgov/files/ETA/oflc/pdfs/LCA_Disclosure_Data_FY{fy}_Q{q}.xlsx"
+LINK = re.compile(r'(?:href="|/)([^"\s]*LCA_Disclosure_Data_FY(\d{4})_Q(\d)[^"\s]*\.xlsx)', re.I)
 
 
-def latest_files(n=2):
-    html = SESSION.get(PAGE, timeout=60).text
+class Getter:
+    """Plain HTTP first; if dol.gov blocks scripts (403), switch to a real headless browser."""
+
+    def __init__(self):
+        self.pw = self.ctx = None
+
+    def _browser(self):
+        if self.ctx is None:
+            from playwright.sync_api import sync_playwright
+            self.pw = sync_playwright().start()
+            b = self.pw.chromium.launch(headless=True)
+            self.ctx = b.new_context(user_agent=SESSION.headers["User-Agent"], accept_downloads=True)
+            self.ctx.new_page().goto("https://www.dol.gov/", timeout=60_000)   # pick up cookies
+        return self.ctx
+
+    def exists(self, url):
+        if self.ctx is None:
+            try:
+                r = SESSION.head(url, timeout=30, allow_redirects=True)
+                if r.status_code == 200:
+                    return True
+                if r.status_code == 404:
+                    return False
+                print(f"  dol.gov answered {r.status_code} to a script; switching to headless browser")
+            except Exception as e:
+                print(f"  HEAD failed ({type(e).__name__}); switching to headless browser")
+        r = self._browser().request.head(url, timeout=60_000)
+        return r.ok
+
+    def download(self, url, path):
+        if self.ctx is None:
+            try:
+                with SESSION.get(url, stream=True, timeout=900) as r:
+                    if r.status_code == 200 and "html" not in r.headers.get("content-type", ""):
+                        with open(path, "wb") as f:
+                            for chunk in r.iter_content(1 << 20):
+                                f.write(chunk)
+                        return
+            except Exception:
+                pass
+        r = self._browser().request.get(url, timeout=900_000)
+        if not r.ok:
+            raise RuntimeError(f"download failed: HTTP {r.status} for {url}")
+        with open(path, "wb") as f:
+            f.write(r.body())
+
+    def close(self):
+        if self.pw:
+            self.pw.stop()
+
+
+def latest_files(getter, n=2):
+    """Newest available quarter for each of the last `n` fiscal years (FY starts in October)."""
+    today = date.today()
+    fy_now = today.year + (1 if today.month >= 10 else 0)
     found = {}
-    for href, fy, q in LINK.findall(html):
-        url = href if href.startswith("http") else "https://www.dol.gov" + href
-        found[(int(fy), int(q))] = url
-    # newest quarter of the newest FY, plus the final quarter of each earlier FY
-    by_fy = {}
-    for (fy, q), url in sorted(found.items()):
-        by_fy[fy] = (q, url)
-    return [(fy, q, url) for fy, (q, url) in sorted(by_fy.items(), reverse=True)[:n]]
+    try:                                            # 1) links on the page, if they're in the HTML
+        html = SESSION.get(PAGE, timeout=60).text
+        for href, fy, q in LINK.findall(html):
+            url = href if href.startswith("http") else "https://www.dol.gov/" + href.lstrip("/")
+            found.setdefault(int(fy), {})[int(q)] = url
+    except Exception:
+        pass
+    out = []
+    for fy in range(fy_now, fy_now - 4, -1):        # 2) otherwise try the standard file names
+        if len(out) >= n:
+            break
+        if fy in found:
+            q = max(found[fy])
+            out.append((fy, q, found[fy][q]))
+            continue
+        for q in (4, 3, 2, 1):
+            url = FILE.format(fy=fy, q=q)
+            ok = getter.exists(url)
+            print(f"  FY{fy} Q{q}: {'found' if ok else 'not published'}")
+            if ok:
+                out.append((fy, q, url))
+                break
+    return out
 
 
 def aggregate(path, agg, names):
@@ -72,21 +143,23 @@ def aggregate(path, agg, names):
 
 
 def main():
-    files = latest_files(int(sys.argv[1]) if len(sys.argv) > 1 else 2)
-    if not files:
-        print("No LCA disclosure files found on", PAGE)
-        sys.exit(1)
-    agg = defaultdict(lambda: [0, 0, 0])
-    names = {}
-    for fy, q, url in files:
-        print(f"Downloading FY{fy} Q{q}: {url}", flush=True)
-        with tempfile.NamedTemporaryFile(suffix=".xlsx") as tmp:
-            with SESSION.get(url, stream=True, timeout=600) as r:
-                r.raise_for_status()
-                for chunk in r.iter_content(1 << 20):
-                    tmp.write(chunk)
-            tmp.flush()
-            print(f"  parsed {aggregate(tmp.name, agg, names):,} rows", flush=True)
+    getter = Getter()
+    try:
+        files = latest_files(getter, int(sys.argv[1]) if len(sys.argv) > 1 else 2)
+        if not files:
+            print("Couldn't find any LCA disclosure file on dol.gov. The tracker still works without it;\n"
+                  "sponsorship then comes only from job descriptions. Try again later.")
+            sys.exit(1)
+        agg = defaultdict(lambda: [0, 0, 0])
+        names = {}
+        for fy, q, url in files:
+            print(f"Downloading FY{fy} Q{q}: {url}", flush=True)
+            with tempfile.NamedTemporaryFile(suffix=".xlsx") as tmp:
+                getter.download(url, tmp.name)
+                print(f"  {os.path.getsize(tmp.name) / 1e6:.0f} MB, parsing…", flush=True)
+                print(f"  parsed {aggregate(tmp.name, agg, names):,} rows", flush=True)
+    finally:
+        getter.close()
     out = {k: [v[0], v[1], v[2], names.get(k, k)] for k, v in agg.items() if v[0] > 0 or v[2] >= 5}
     meta = {"_source": [f"FY{fy} Q{q}" for fy, q, _ in files]}
     (ROOT / "data" / "h1b.json").write_text(json.dumps({**meta, **out}, separators=(",", ":"), sort_keys=True))

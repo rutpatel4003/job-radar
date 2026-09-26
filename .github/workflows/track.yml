@@ -18,12 +18,12 @@ permissions:
   contents: write
 
 concurrency:
-  group: job-tracker-writes
+  group: job-tracker-scan
   cancel-in-progress: false
 
 jobs:
   track:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # pinned: Playwright's system deps target 24.04
     timeout-minutes: 20
     env:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -34,8 +34,8 @@ jobs:
       ADZUNA_APP_KEY: ${{ secrets.ADZUNA_APP_KEY }}
       DASHBOARD_URL: ${{ vars.DASHBOARD_URL }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip

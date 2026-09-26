@@ -236,6 +236,11 @@ def main():
     grad, earliest = ym(scfg.get("graduation"), "2027-05"), ym(scfg.get("earliest_start"), "2027-06")
     h1b = H1B()
     aliases = cfg.get("h1b_aliases") or {}
+    if h1b:
+        for r in store.jobs.values():
+            if r.get("h1b") is None:
+                r["h1b"] = h1b.lookup(r["company"], aliases)
+                store.dirty = True
     try:
         tracking = json.loads((DATA / "tracking.json").read_text()).get("jobs") or {}
     except Exception:

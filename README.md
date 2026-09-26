@@ -70,12 +70,20 @@ Then, under **Settings → Secrets and variables → Actions → Variables**, ad
 
 Use a separate token per device if you like; each one can be revoked on its own.
 
-**6. Run the workflows once, in this order, from the Actions tab:**
+**6. Let it run.** Everything is automatic once the files are on GitHub:
 
-1. **Job tracker (every 3 hours)** with *Only send a test notification* ticked. Your phone should buzz.
-2. **H-1B sponsor data (quarterly)**. Takes about 20 minutes.
-3. **Discover companies (twice a week)**.
-4. **Job tracker (every 3 hours)**. The first real scan saves everything already open without pinging you for each job. The first day's runs spend their spare time filling in descriptions for existing jobs.
+- **Job tracker:** every 3 hours.
+- **Discover companies:** Sundays and Wednesdays.
+- **H-1B data:** each quarter.
+
+You don't have to start anything by hand. The only reasons to press **Run workflow** yourself are:
+
+- **Test notification.** Job tracker with *Only send a test notification* ticked, to check that alerts reach your phone.
+- **Start now instead of waiting.** Run **Discover companies**, **H-1B sponsor data**, and **Job tracker** once each. The order doesn't matter, and they can run at the same time:
+  - Companies found later are added quietly, without flooding you with their old jobs.
+  - H-1B history is attached to all saved jobs as soon as the data arrives.
+
+The first real scan saves everything already open without pinging you for each job. The first day's runs spend their spare time filling in descriptions for existing jobs.
 
 ### Actions minute budget (GitHub Pro, 3,000 min/month)
 

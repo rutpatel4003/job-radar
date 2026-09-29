@@ -26,6 +26,25 @@ def test_years_of_age_is_not_experience():
     assert analyze_description("5+ years of experience building distributed systems")["min_years"] == 5
 
 
+def test_sponsorship_wording():
+    cases = {
+        "Must obtain work authorization in country of employment at the time of hire.": "unknown",
+        "Candidates must be authorized to work in the United States.": "unknown",
+        "Open to U.S. citizens or permanent residents only.": "citizen",
+        "Applicants must be U.S. citizens or green card holders.": "citizen",
+        "This position requires a polygraph.": "citizen",
+        "Must be able to obtain a DOE Q clearance.": "citizen",
+        "Requires an active Secret clearance.": "citizen",
+        "Public Trust background investigation required.": "citizen",
+        "We are unable to sponsor visas for this role.": "no_sponsor",
+        "Visa sponsorship is available.": "sponsors",
+    }
+    bad = {t: (analyze_description(t)["sponsorship"], want) for t, want in cases.items()
+           if analyze_description(t)["sponsorship"] != want}
+    assert not bad, bad
+    assert "obtain / maintain work authorization in the country of employment" in audit.SYSTEM
+
+
 def test_newgrad_titles_are_flagged_not_hidden():
     exp = CFG["experience"]
     assert years_verdict(3, ["newgrad"], exp) == (3, None)

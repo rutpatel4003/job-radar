@@ -28,7 +28,7 @@ from .sources.pagewatch import fetch_pages, fetch_texts
 from .store import Store
 
 DATA = ROOT / "data"
-ANALYSIS_VERSION = 2     # bump to re-run description analysis on saved jobs once (see migrate())
+ANALYSIS_VERSION = 3     # bump to re-run description analysis on saved jobs once (see migrate())
 CLEARANCE_TITLE = re.compile(r"ts/sci|clearance|\bsecret\b|polygraph|u\.?s\.? citizen|\bus person", re.I)
 
 

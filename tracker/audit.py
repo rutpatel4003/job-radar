@@ -56,8 +56,22 @@ HOW TO ANSWER
 - years_required: the minimum years of professional experience the posting REQUIRES (not "preferred"), or null.
   If a degree can substitute ("3 years or a Master's"), use the smallest requirement that applies to someone with
   an MS. Ignore ages ("18 years of age").
-- sponsorship: "yes" (says it sponsors visas), "no" (says it won't sponsor / needs no sponsorship now or later),
-  "citizens_only" (U.S. citizenship, U.S. person, ITAR or a security clearance required), or "not_mentioned".
+- sponsorship: exactly one of these, judged ONLY from explicit wording. The candidate is on an F-1 student visa
+  (OPT, later H-1B): not a U.S. citizen, not a green-card holder, so not a "U.S. person".
+  "citizens_only" when the posting requires any of:
+     U.S. citizenship; "U.S. citizens or permanent residents / green card holders only"; "U.S. person" status or
+     ITAR / EAR export-control eligibility (these mean citizen or green card); an active or obtainable security
+     clearance of any kind (Secret, Top Secret, TS/SCI, "clearable", "eligible for a clearance", DoD, DOE Q or L,
+     polygraph, CI poly, full-scope poly); or a federal Public Trust position.
+  "no" when it explicitly refuses sponsorship, e.g. "unable to sponsor", "will not sponsor", "no visa sponsorship",
+     "must be authorized to work without current or future sponsorship", "not eligible for sponsorship",
+     "OPT / CPT / H-1B candidates will not be considered".
+  "yes" when it explicitly offers it, e.g. "visa sponsorship available", "we sponsor H-1B", "open to sponsoring".
+  "not_mentioned" for everything else. Generic work-authorization lines are NOT a refusal: "must be authorized
+     to work in the U.S.", "must obtain / maintain work authorization in the country of employment",
+     "proof of eligibility to work", "E-Verify employer", equal-opportunity boilerplate -> "not_mentioned".
+     Never infer sponsorship from company type, location or job level.
+  The sponsorship_quote must be the sentence containing the explicit wording above.
 - start: "fits" (start date / graduation window allows starting June 2027), "too_early" (must start or graduate
   before that), or "not_mentioned".
 - staffing_agency: true only if the posting is from a staffing / consulting body shop placing people at a client

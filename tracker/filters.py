@@ -200,6 +200,12 @@ CITIZEN = [
     r"eligib(le|ility)\s+(to\s+obtain|for)\s+(a\s+)?(u\.?s\.?\s+)?(government\s+)?security\s+clearance",
     r"\bitar\b",
     r"u\.?s\.?\s+person",
+    r"(u\.?s\.?|united states)\s+citizens?\s+(or|and|/)\s+(lawful\s+)?(permanent\s+residents?|green\s*card)",
+    r"(only|must\s+be)\s+(a\s+)?(u\.?s\.?\s+)?(citizens?|green\s*card\s+holders?)\s+(or|and)\s+(lawful\s+)?permanent",
+    r"\bpolygraph\b|\b(ci|full[- ]scope)\s+poly\b",
+    r"\b(doe\s+)?[ql][- ]clearance\b|\bdoe\s+[ql]\b",
+    r"\bpublic\s+trust\s+(clearance|position|background)",
+    r"\b(secret|top\s+secret)\s+(security\s+)?clearance",
 ]
 SPONSORS = [
     r"(visa|h-?1b|immigration)\s+sponsorship\s+(is\s+)?(available|provided|offered)",

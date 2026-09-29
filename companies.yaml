@@ -10,6 +10,9 @@
 companies:
   # Explicit / special boards
   - {name: Amazon, ats: amazon}
+  - {name: Apple, ats: apple}                                   # jobs.apple.com JSON API
+  - {name: AMD, ats: jibe, host: careers.amd.com}               # full US list via careers.amd.com/api/jobs
+  - {name: Uber, ats: oracle, host: iaziqy.fa.ocs.oraclecloud.com, site: UberCareers}   # Uber moved to Oracle
   - {name: OpenAI, ats: ashby, token: openai}
   - {name: Anthropic, ats: greenhouse, token: anthropic}
   - {name: Hayden AI, ats: ashby, token: haydenai}
@@ -47,7 +50,7 @@ companies:
   - {name: Capital One, ats: workday, host: capitalone.wd12.myworkdayjobs.com, tenant: capitalone, site: Capital_One}
   - {name: Intel, ats: workday, host: intel.wd1.myworkdayjobs.com, tenant: intel, site: External}
 
-  # Eightfold career sites (EXPERIMENTAL API; the same sites are also watched in career_pages)
+  # Eightfold career sites (Microsoft & Qualcomm use the newer "pcsx" API, Netflix the classic one; both handled)
   - {name: Microsoft, ats: eightfold, host: apply.careers.microsoft.com, domain: microsoft.com}
   - {name: Qualcomm, ats: eightfold, host: qualcomm.eightfold.ai, domain: qualcomm.com}
   - {name: Netflix, ats: eightfold, host: explore.jobs.netflix.net, domain: netflix.com}

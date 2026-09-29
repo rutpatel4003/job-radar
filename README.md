@@ -4,13 +4,13 @@ A tracker for new-grad **AI/ML, computer vision, and software engineering** role
 
 ## What it does every 3 hours
 
-1. It reads about 1,600 company job boards directly: Greenhouse, Ashby, Lever, SmartRecruiters, Workday, Oracle Recruiting Cloud, Eightfold, Workable, Rippling, BambooHR, Recruitee, and Amazon's search API. Examples:
+1. It reads about 1,900 company job boards directly: Greenhouse, Ashby, Lever, SmartRecruiters, Workday, Oracle Recruiting Cloud, Eightfold, Workable, Rippling, BambooHR, Recruitee, iCIMS Jibe, and the Amazon and Apple search APIs. Examples:
    - OpenAI, Anthropic, xAI, SpaceX, NVIDIA and Stripe
    - Databricks, Waymo, Zoox, Hayden AI and Solace Health
-   - JPMorgan, Morgan Stanley, Capital One and Bank of America
-   - Microsoft, Qualcomm and Netflix (via Eightfold)
-2. It opens custom career sites in a headless browser: Google, Meta, Apple, Microsoft, TikTok, ByteDance, Goldman Sachs, Tesla, Qualcomm, Netflix, AMD, and Uber.
-3. It reads the community GitHub lists (Simplify, vanshb03, speedyapply, jobright, zapply) and the free aggregator APIs (Hacker News "Who is hiring", The Muse, RemoteOK, and Adzuna if you add a free key).
+   - JPMorgan, Morgan Stanley, Capital One, Bank of America and Uber (Oracle)
+   - Microsoft, Qualcomm and Netflix (Eightfold), Apple, and AMD (Jibe)
+2. It opens the career sites that have no usable API in a headless browser: Google, Meta, TikTok, ByteDance, Goldman Sachs and Tesla.
+3. It reads the community GitHub lists (Simplify, vanshb03, speedyapply, jobright, zapply, ApplyGuy, aprameyak) and the free aggregator APIs (Hacker News "Who is hiring", The Muse, RemoteOK, and Adzuna if you add a free key). zapply links are followed to the real job-board posting, and jobright links get jobright's structured summary as their description.
 4. It keeps only relevant US roles at new-grad level, removes duplicates, spots reposts, and fetches each new job's description. Postings that have no public API (Google, Apple, Microsoft, TikTok links from community lists, and custom sites) are opened in the browser, so their sponsorship, start date, and resume match get checked too.
 5. It re-opens roughly an eighth of the open Workday, Oracle, and community-listed postings each run, so every job gets checked about once a day. A posting is marked closed after two "not found" answers.
 6. It sends one Telegram message listing the new roles and updates the dashboard.
@@ -100,7 +100,11 @@ If usage runs high (check **Settings → Billing → Usage**), set `career_pages
 
 ## How it decides things
 
-**Relevance.** A title must contain a field keyword (ML, CV, or SDE terms) and a role word (engineer, scientist, developer…). Senior, staff, lead, manager, level III+, and internship titles are removed. Titles like "new grad", "university graduate", "early career", or "Engineer I" get a ⭐ and sort first. "Engineer II" is kept but flagged. Roles whose description asks for 5+ years are hidden, and 3+ years are flagged. All of this is set in `config.yaml`.
+**Relevance.** A title must contain a field keyword (ML, CV, or SDE terms, including Member of Technical Staff, Forward Deployed and Data Engineer) and a role word (engineer, scientist, developer…). "Engineer, New Grad 2027"-style titles count too. Senior, staff, tech lead, manager, level III+ / 5+, contract, and internship titles are removed. Exclusion words are checked only against the role part of a title, so team names after a dash don't drop a job ("ML Engineer Graduate - Lead Ads", "SWE - Emerging Talent"). Titles like "new grad", "university graduate", "early career", or "Engineer I" get a ⭐ and sort first. "Engineer II" is dropped unless the title is also new-grad.
+
+**Experience.** Roles whose description asks for 3+ years are hidden and 2+ years are flagged ⏳. Exceptions: years offered as an alternative to a degree ("3+ years or a Master's") are ignored, ages ("must be 18 years of age") are ignored, and new-grad titles are only flagged, never hidden. Hidden jobs stay on the dashboard behind **Show hidden**, each with its reason and the sentence it came from. All of this is set in `config.yaml`.
+
+**Staffing agencies** (listed in `config.yaml → staffing`, plus company names like "…Staffing" or "…Infotech" and descriptions that mention C2C, corp-to-corp, W2-only or "our client") are tagged, hidden on the dashboard by default, and not notified.
 
 **Start date.** This is set for a May 2027 graduation and a June 2027 earliest start (`config.yaml → start_date`). Each job's title and description are checked for start dates, start seasons, and graduation windows:
 
@@ -129,6 +133,8 @@ A job is marked closed after it's missing from its company's full board on two r
 3. **Real H-1B filing history.** This is the company's certified H-1B applications for computer occupations (SOC 15-xxxx) from the Department of Labor, including how many were at entry-level wages. It is shown as "H-1B history 1,240" or "No H-1B record".
 4. **Community list labels.** These are shown only in the detail panel and marked *unverified*.
 
+**Company clearance pattern.** When most of a company's postings that mention it require citizenship or a clearance (defense contractors), its postings that say nothing get a soft "Likely clearance" flag. Nothing is hidden unless you pick "…and likely-clearance companies" in the sponsorship filter.
+
 The default dashboard filter hides roles that explicitly say no sponsorship or citizens-only. Switch to "Any sponsorship" to see everything.
 
 **Resume match.** The tool counts which recognized tech terms in the description appear on each resume. The skill lists in `config.yaml → profile` were built from your SDE resume; edit the `ML/AI` list to mirror your ML resume. The tool tells you which resume to use and which skills the job asks for that you didn't list. It's keyword overlap, not magic, but it's useful for triage.
@@ -147,7 +153,11 @@ The dashboard has two tabs.
 - New-grad titles
 - Starts before June 2027
 - Jobs you're already tracking
+- Staffing agencies (hidden by default)
+- Postings older than 6 months (hidden by default; `config.yaml → dashboard.stale_days`)
+- AI fit (appears once the local AI review has run)
 - Closed postings
+- Hidden jobs (the ones your filters removed, each with its reason)
 
 Rows with yellow corner brackets are new since your last visit.
 
@@ -174,7 +184,35 @@ Jobs you track stay in your list even after the posting closes. If a company rep
 
 **Keyboard:** `j`/`k` move, `Enter` opens details, `o` opens the application, `s` save, `a` applied, `x` not interested, `←`/`→` change page, `Esc` close.
 
-## Optional: AI screening (off by default)
+## Local AI review on your PC (free, optional)
+
+Your PC can run an open model that reads every job next to your resumes and adds an **AI fit** score, the resume to use, missing skills and a one-line reason. The GitHub bot keeps doing all the fetching every 3 hours; the review runs once a day on your machine and costs nothing but electricity.
+
+**Why you can trust it:** it never hides, closes or deletes a job (the regex filters stay in charge). Every fact it states (years required, sponsorship, start date, staffing agency) must come with an exact quote from the posting, and the code checks that the quote is really there. A claim whose quote can't be found is thrown away and listed as "unverified". The fit score is labelled as the model's opinion.
+
+**One-time setup** (WSL, a 24 GB GPU such as an RTX 3090, Docker Desktop with WSL integration turned on):
+
+```bash
+cd ~ && git clone https://github.com/syv-ai/HyperQwen && cd HyperQwen
+cp .env.example .env
+echo "VLLM_API_KEY=$(openssl rand -hex 24)" >> .env
+docker compose --profile batch up -d          # first start: ~9.5 GB image + ~20 GB model, 15-30 min
+curl -s localhost:18020/health && echo ready
+cd /mnt/e/job-radar && cp .env.local.example .env.local   # then fill in the values
+```
+
+`.env.local` is never committed. Put the same `VLLM_API_KEY` in it, plus `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` if you want a "best matches" message.
+
+**Every day (or whenever you like):**
+
+```bash
+bash scripts/daily_audit.sh            # pull, start Qwen, review new jobs, push data/ai_review.json, stop Qwen
+bash scripts/daily_audit.sh --dry-run  # review 5 jobs and print them, save nothing
+```
+
+The first run works through the backlog (roughly 1–2 hours on a 3090). After that it only reviews new jobs, which takes a few minutes. Reviews go to `data/ai_review.json`, a file the GitHub bot never writes, so there are no merge conflicts. Settings are in `config.yaml → local_ai` (server address, concurrency, resume summaries). Any OpenAI-compatible local server (Ollama, LM Studio, llama.cpp) also works: change `local_ai.base_url`.
+
+## Optional: AI screening on GitHub (off by default)
 
 `tracker/ai_filter.py` can have an LLM read each description and flag roles that aren't for you (too senior, not engineering, citizens-only, …) using the profile in `config.yaml → ai_filter`.
 
@@ -207,7 +245,7 @@ If a site shows 0 links, open it in your browser, copy one job link, and adjust 
 ```bash
 python -m tracker.run --dry-run --skip-pages     # fetch + filter, print what would be sent, save nothing
 python -m tracker.run --dry-run --only waymo,openai
-python -m pytest -q                               # offline tests for dedup/repost/closure logic
+python -m pytest -q                               # offline tests (or run each tests/test_*.py file)
 python -m tracker.notify                          # send a test notification (needs the env vars)
 ```
 
@@ -219,7 +257,7 @@ Pro plans can run 5 Claude Code routines a day, which is too few for the scans t
 
 ## Honest limitations
 
-- **The Oracle (JPMorgan, Goldman lateral, AmEx) and Eightfold (Microsoft, Qualcomm, Netflix) readers are experimental.** They use those sites' public JSON endpoints, which couldn't be tested from the build environment. If the run log shows them failing, the career-page watcher and community lists still cover those companies.
+- **The Oracle, Eightfold, Apple and Jibe readers use those sites' own JSON endpoints.** They were tested against the live sites in September 2026, but the companies can change them without notice. If the run log shows one failing, the community lists still cover those companies' new-grad roles.
 - **H-1B data may need your laptop once a quarter.** The Department of Labor blocks many cloud servers, including GitHub's. When that happens, the quarterly workflow doesn't fail; it sends you a Telegram reminder. Then, in the repo on your laptop:
 
   ```bash
@@ -230,7 +268,7 @@ Pro plans can run 5 Claude Code routines a day, which is too few for the scans t
 
   If your laptop is blocked too, download the newest LCA (H-1B) `.xlsx` from the Disclosure Data tab of dol.gov's Performance Data page and run `python -m tracker.h1b --files <path to the file>`. Everything else keeps working in the meantime; sponsorship then comes only from job descriptions.
 - **Workday, Oracle, and custom career sites are searched, not fully listed.** They catch new postings that match your queries. Closed postings are caught by the daily re-check, not instantly.
-- **Career-page patterns may need tuning.** They were written without being able to load those sites from the build environment. Run the `--test` command once after setup.
+- **Career-page patterns may need tuning.** Sites change their HTML. Run the `--test` command if a site starts returning 0 links. (Uber moved to Oracle and is read from there now.)
 - **A few sites block headless browsers** (Tesla most of the time). Jobs from those sites keep "no description captured" and rely on H-1B history for the sponsorship signal.
 - **LinkedIn, Indeed, Glassdoor, Handshake, and Wellfound have no public API and forbid scraping.** Use their own saved-search email alerts alongside this tool.
 - **GitHub runs scheduled jobs on a best-effort basis.** Runs can start a few minutes late during busy periods.

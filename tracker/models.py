@@ -20,6 +20,12 @@ class Job:
     fetch_detail: Optional[Callable] = None  # lazily returns {"description", "locations", "country"}
 
 
+class Partial(list):
+    """Returned by an adapter of a full-list board when it had to stop early (time budget, page cap):
+    the jobs are used, but missing jobs are NOT treated as closed."""
+    complete = False
+
+
 @dataclass
 class FetchResult:
     board: str

@@ -23,6 +23,8 @@ def badges(r):
         out.append("⚠️ starts too early")
     if r.get("sponsorship") in SPONSOR_BADGE:
         out.append(SPONSOR_BADGE[r["sponsorship"]] + " (per JD)")
+    elif r.get("clearance_likely"):
+        out.append("🛡️ likely clearance (most of this company's jobs need it)")
     elif r.get("h1b"):
         n = r["h1b"].get("tech", 0)
         out.append(f"🟢 H-1B history: {n:,} tech filings" if n >= 20 else

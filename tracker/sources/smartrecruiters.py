@@ -3,7 +3,7 @@ from urllib.parse import urlparse
 
 from ..filters import html_to_text
 from ..http import get_json
-from ..models import Job
+from ..models import Job, Partial
 
 API = "https://api.smartrecruiters.com/v1/companies/{token}/postings"
 COMPLETE = True
@@ -12,9 +12,9 @@ COMPLETE = True
 def fetch(c, cfg):
     token = c["token"]
     jobs, offset = [], 0
-    while offset < 1000:
-        if c.get('_deadline') and __import__('time').time() > c['_deadline']:
-            break
+    while True:
+        if offset >= 1000 or (c.get('_deadline') and __import__('time').time() > c['_deadline']):
+            return Partial(jobs)          # stopped early: don't treat the rest as closed
         data = get_json(API.format(token=token) + f"?country=us&limit=100&offset={offset}")
         items = data.get("content") or []
         for p in items:

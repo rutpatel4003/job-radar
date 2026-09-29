@@ -23,7 +23,7 @@ from .config import ROOT, load_config
 from .filters import TitleFilter, location_status, norm_company
 from .http import get_json
 from .ids import ats_from_url, board_key
-from .sources.community import parse_markdown_tables, simplify_listings
+from .sources.community import cached_redirect, parse_markdown_tables, simplify_listings
 from .http import get_text
 
 DATA = ROOT / "data"
@@ -66,8 +66,17 @@ def harvest(cfg, tf):
     for u in cl.get("markdown", []) + [x for x in cl.get("discovery_only", []) if not x.endswith(".json")]:
         try:
             for r in parse_markdown_tables(get_text(u)):
-                consider(r["company"], r["title"], [r["location"]], r["url"])
+                consider(r["company"], r["title"], [r["location"]], cached_redirect(r["url"]) or r["url"])
             print(f"[harvest] {u.split('/')[4]}: ok")
+        except Exception as e:
+            print(f"[harvest] {u}: {e}")
+    for u in cl.get("applyguy", []):
+        try:
+            data = json.loads(get_text(u))
+            for x in (data.get("jobs") if isinstance(data, dict) else data) or []:
+                if x.get("listingUrl"):
+                    consider(x.get("company", ""), x.get("title", ""), [x.get("location") or ""], x["listingUrl"])
+            print("[harvest] applyguy: ok")
         except Exception as e:
             print(f"[harvest] {u}: {e}")
 

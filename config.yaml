@@ -66,6 +66,25 @@ title_keywords:
     - distributed systems
     - systems software
     - developer
+    - member of technical staff     # AI labs' entry-level title (OpenAI, Anthropic, xAI…)
+    - technical staff
+    - mts
+    - forward deployed
+    - founding engineer
+    - product engineer
+    - site reliability
+    - sre
+    - production engineer
+    - data engineer
+    - data engineering
+    - compiler
+    - technology analyst            # bank new-grad tech programs (Morgan Stanley, Citi…)
+    - engineering analyst
+    # - frontend                    # uncomment to include frontend / mobile roles
+    # - front-end
+    # - mobile engineer
+# Titles that are only "Engineer" plus a strong new-grad marker ("Engineer, New Grad 2027", "New Grad Engineer",
+# "Engineering Resident") are also kept, as SDE.
 
 # The title must ALSO contain one of these role words (filters out "AI Sales Lead", "Data Mapping Analyst"...).
 role_words:
@@ -83,8 +102,15 @@ role_words:
   - mts
   - resident
   - residency
+  - new grad
+  - new graduate
+  - technology analyst
+  - engineering analyst
 
 # Titles containing any of these are dropped even if they matched above.
+# When the title starts with a real engineering role ("Software Engineer - Customer Platform",
+# "ML Engineer Graduate - Lead Ads", "SWE - Emerging Talent"), only that role part is checked, so team
+# names after a dash / comma don't drop the job.
 title_exclude:
   - sales
   - account executive
@@ -114,11 +140,16 @@ title_exclude:
   - tutor
   - annotator
   - data labeling
+  - data labeler
+  - labeler
+  - annotation
+  - data collection
+  - operator
   - trainer               # "AI trainer" gig roles
-  - contract
-  - contractor
-  - part-time
-  - part time
+  - data analyst
+  - business analyst
+  - product analyst
+  - insights analyst
   - it engineer
   - it support
   - it specialist
@@ -131,6 +162,15 @@ title_exclude:
   - developer relations
   - solutions consultant
 
+# Checked against the WHOLE title, even after a dash ("Software Engineer - Contract").
+title_exclude_anywhere:
+  - contract
+  - contractor
+  - part-time
+  - part time
+  - temporary
+  - seasonal
+
 level:
   # Seniority words that remove a job.
   exclude:
@@ -139,7 +179,9 @@ level:
     - sr\.
     - staff
     - principal
-    - lead
+    - "\\b(tech|team|technical|engineering|project)\\s+lead\\b"
+    - "\\blead\\s+(engineer|developer|scientist|software|machine|ml|data|ai|research|swe|sde|backend|platform)"
+    - "[-,–]\\s*lead\\s*$"
     - manager
     - director
     - head of
@@ -152,7 +194,13 @@ level:
     - iv
     - "\\bl[5-9]\\b"
     - "level [3-9]"
-    - "(engineer|developer|scientist|sde|swe)\\s*(iii|iv|[3-9])\\b"
+    - "(engineer|engineering|developer|scientist|sde|swe)\\s*(iii|iv|[3-9])\\b"
+    - cvp
+    - svp
+    - evp
+    - mid-level
+    - mid level
+    - midlevel
     - intern
     - internship
     - interns
@@ -161,6 +209,9 @@ level:
     - apprentice
     - postdoc
     - postdoctoral
+  # Checked only against the role part of the title ("Lead Engineer" is out; "ML Engineer - Lead Ads" stays).
+  exclude_in_role_part:
+    - lead
   # Words that mark a title as explicitly new-grad friendly (gets a ⭐ and sorts first).
   newgrad_markers:
     - new grad
@@ -208,6 +259,33 @@ experience:
   # ("3+ years OR a Master's") are ignored, so MS-friendly roles aren't hidden.
   flag_min_years: 2   # show a ⏳ badge when the description asks for ≥ this many years
   hide_min_years: 3   # hide the job when the description asks for ≥ this many years
+  never_hide_newgrad_titles: true   # "New Grad" / "Early Career" / "Engineer I" titles get the ⏳ badge instead
+  # "Must be 18 years of age or older" is ignored (it used to hide Amazon's new-grad roles as "18+ years").
+
+# ── Staffing agencies / C2C body shops ──
+# Tagged (not deleted): hidden on the dashboard by default ("Hide staffing agencies") and not notified.
+# Also detected automatically from the company name (…Staffing, …Infotech, …Recruiting) and from
+# descriptions that mention C2C / corp-to-corp / W2 only / "our client" / H1B transfer.
+staffing:
+  notify: false
+  boards: [jobsbridge1, atriagroupllc, usm2, dellfortechnologies, krgtechnologyinc, stemxpert1, idealforcellc,
+           infojiniinc1, tectammina, askitconsulting, mapjectscom, collabera2, deegitinc3, satechnologiesinc4,
+           agtechnologies1, procomconsultantsgroup, mindlance2, sonsoftinc, procomservices, saxonglobal]
+  names: [Jobsbridge, Atria Group, USM Business Systems, DellFor Technologies, KRG Technologies, STEM Expert,
+          Idealforce, Infojini, Tech Tammina, Ask IT Consulting, Mapjects, Collabera, Deegit, SA Technologies,
+          AG Technologies, Procom, Mindlance, Sonsoft, Saxon Global, Arka Infotech, 9th Way Insignia,
+          North Star Staffing Solutions, Revature, SynergisticIT, Smoothstack, FDM Group]
+  never: []            # companies the automatic check must never tag
+
+# ── Company-level clearance pattern ──
+# If most of a company's jobs that state it are citizens-only / clearance (Anduril, Leidos, Palantir…), its jobs
+# that say nothing get a soft "likely clearance" flag. Nothing is hidden by default.
+clearance_pattern:
+  min_known: 4          # need at least this many jobs that state sponsorship / citizenship
+  share: 0.7            # … and at least this share of them citizens-only
+
+dashboard:
+  stale_days: 180       # "Hide postings older than 6 months" filter (evergreen / reposted-forever listings)
 
 locations:
   keep_remote: true    # "Remote" with no country → kept (flagged)
@@ -235,6 +313,41 @@ ai_filter:
     On F-1 visa: will need H-1B sponsorship later, so citizenship-only or clearance roles are impossible.
     Skills: Python, Go, C++, C#, SQL, TypeScript, PyTorch, OpenCV, Hugging Face, LLMs/RAG, AWS, Docker, PostgreSQL.
 
+# ── Local AI review on YOUR PC (python -m tracker.audit, or scripts/daily_audit.sh) ──
+# Qwen3.8-27B served by HyperQwen (free, Apache-2.0) on your RTX 3090 through its OpenAI-compatible API.
+# Annotate-only: it NEVER hides or deletes a job. It adds a fit score, the resume to use, missing skills and a
+# one-line reason. Every fact it claims (years, sponsorship, start date) must come with an exact quote, and the
+# quote is checked against the description; unverified claims are thrown away. Results: data/ai_review.json
+# (the GitHub bot never writes that file, so there are no merge conflicts).
+local_ai:
+  base_url: http://localhost:18020/v1
+  model: auto                  # "auto" = first model the server lists (HyperQwen serves qwen3.8-27b)
+  api_key_env: VLLM_API_KEY    # read from the environment / .env.local; blank is fine for localhost
+  concurrency: 32              # HyperQwen batch mode handles ~64 parallel requests on a 3090
+  max_jobs_per_run: 3000       # the first run works through the backlog; later runs only see new jobs
+  desc_chars: 6000             # description text sent per job (≈1,500 tokens)
+  review_again_after_days: 30  # re-review a job if it's still open after this long
+  include_hidden: true         # also review jobs the regex hid (to catch wrongly hidden ones)
+  digest_top: 15               # Telegram "today's best matches" message after a run (needs TELEGRAM_* in .env.local)
+  resumes:                     # what the model compares against (skills only, no contact details; edit freely)
+    SDE: |
+      MS CS (USC, May 2027), B.Tech ICT. ~1.5 years of internships.
+      Backend SWE intern (Go/GORM): searchable index over cloud access-governance data, idempotent refreshes,
+      end-to-end integration tests for multi-org policy rollout. Data engineer intern: weekly AWS Batch + C# pipeline
+      classifying MongoDB records with LLMs on Bedrock (40% faster after profiling); OpenSearch via CloudFormation +
+      Jenkins CI/CD. Backend & ML intern: REST APIs, .NET Core APIs with RBAC and caching, text-to-SQL LLM pipeline.
+      Skills: Python, Go, C++, C#, C, SQL, JavaScript, TypeScript; REST, GraphQL, .NET Core, FastAPI, Flask, GORM;
+      AWS (Batch, S3, Lambda, Bedrock, CloudFormation), Docker, Jenkins, CI/CD, IaC, Git; PostgreSQL, MySQL, MongoDB,
+      OpenSearch, Qdrant; unit/integration testing, debugging, profiling, data pipelines.
+    ML/AI: |
+      MS CS (USC, May 2027). Projects: autonomous-driving perception pipeline (Mask2Former segmentation on
+      Cityscapes, Depth Anything V2 fine-tuned sim-to-real on KITTI, ByteTrack tracking); local RAG document Q&A
+      (hybrid retrieval with rank fusion, Qdrant, 4/5-bit quantization, llama-cpp, LLM-as-judge eval suite).
+      Intern work: visual search over 100K+ images with DINOv2 embeddings + OpenCV matching; LLM text-to-SQL;
+      LLM classification pipeline on AWS Bedrock.
+      Skills: PyTorch, TensorFlow, OpenCV, Hugging Face Transformers, scikit-learn, NumPy, LangChain, Qdrant,
+      segmentation, depth estimation, detection/tracking, RAG, embeddings, quantization, evaluation; Python, C++.
+
 notifications:
   # Channels are enabled by adding secrets in GitHub (see README). No secret = channel off.
   seed_notify_hours: 48      # first scan of a new board: only ping jobs posted in the last N hours
@@ -258,6 +371,11 @@ workday:
     - robotics
     - backend engineer
   max_results_per_query: 100  # 20 per page
+
+apple:           # jobs.apple.com JSON API, newest first (replaces the browser scrape)
+  queries: [machine learning, software engineer, computer vision, new grad, early career, research engineer,
+            perception, backend]
+  pages_per_query: 5    # 20 results per page
 
 oracle:          # JPMorgan, Goldman (lateral), AmEx, Oracle, BNY… (searched like Workday)
   max_results_per_query: 100
@@ -287,8 +405,13 @@ community_lists:
     - https://raw.githubusercontent.com/speedyapply/2027-AI-College-Jobs/main/NEW_GRAD_USA.md
     - https://raw.githubusercontent.com/speedyapply/2027-SWE-College-Jobs/main/NEW_GRAD_USA.md
     - https://raw.githubusercontent.com/jobright-ai/2026-Software-Engineer-New-Grad/master/README.md
-    - https://raw.githubusercontent.com/zapplyjobs/New-Grad-Software-Engineering-Positions/main/README.md
-    - https://raw.githubusercontent.com/zapplyjobs/New-Grad-Data-Science-Jobs-2026/main/README.md
+    - https://raw.githubusercontent.com/zapplyjobs/New-Grad-Software-Engineering-Jobs-2027/main/README.md
+    - https://raw.githubusercontent.com/zapplyjobs/New-Grad-Data-Science-Jobs-2027/main/README.md
+    - https://raw.githubusercontent.com/zapplyjobs/New-Grad-Jobs-2027/main/README.md
+    - https://raw.githubusercontent.com/aprameyak/2027-tech-jobs/main/README.md
+  # JSON lists with the real job-board link (ApplyGuy: entry-level US SWE roles, ATS-verified dates, every 15 min)
+  applyguy:
+    - https://raw.githubusercontent.com/ApplyGuy/2027-New-Grad-Jobs/main/data/new-grad-jobs.json
   # Used only by weekly discovery to learn more company names (internship posters hire new grads too).
   discovery_only:
     - https://raw.githubusercontent.com/SimplifyJobs/Summer2027-Internships/dev/.github/scripts/listings.json
@@ -317,6 +440,7 @@ aggregators:
 # ── Custom career sites without a feed, watched with a headless browser (Playwright) ──
 # Put your filters in the URL. link_pattern = regex that matches that site's individual job links.
 # Test with:  python -m tracker.sources.pagewatch --test
+# Apple, AMD, Microsoft, Qualcomm, Netflix and Uber moved to their JSON APIs (companies.yaml).
 career_pages:
   - name: Google
     urls:
@@ -332,41 +456,12 @@ career_pages:
       - https://www.metacareers.com/jobs?q=computer%20vision&offices[0]=North%20America
       - https://www.metacareers.com/jobs?q=software%20engineer%20university
     link_pattern: "/(jobs|job_details)/\\d+"
-  - name: Apple
-    urls:
-      - https://jobs.apple.com/en-us/search?location=united-states-USA&key=machine%2520learning&sort=newest
-      - https://jobs.apple.com/en-us/search?location=united-states-USA&key=computer%2520vision&sort=newest
-      - https://jobs.apple.com/en-us/search?location=united-states-USA&team=internships-STDNT-INTRN&key=graduate&sort=newest
-      - https://jobs.apple.com/en-us/search?location=united-states-USA&key=software%2520engineer%2520early%2520career&sort=newest
-    link_pattern: "/details/\\d+"
-  - name: Microsoft
-    urls:
-      - https://apply.careers.microsoft.com/careers?query=machine%20learning&location=United%20States&sort_by=timestamp
-      - https://apply.careers.microsoft.com/careers?query=software%20engineer%20university&location=United%20States&sort_by=timestamp
-      - https://apply.careers.microsoft.com/careers?query=computer%20vision&location=United%20States&sort_by=timestamp
-    link_pattern: "/careers/job/\\d+"
   - name: TikTok
     urls:
       - https://lifeattiktok.com/search?keyword=machine%20learning%20graduate&location=CT_157
       - https://lifeattiktok.com/search?keyword=software%20engineer%20graduate&location=CT_157
       - https://lifeattiktok.com/search?keyword=computer%20vision&location=CT_157
     link_pattern: "/search/\\d{10,}"
-  - name: Qualcomm
-    urls:
-      - https://careers.qualcomm.com/careers?query=machine%20learning&location=United%20States&sort_by=timestamp
-    link_pattern: "/careers/job/\\d+"
-  - name: Netflix
-    urls:
-      - https://explore.jobs.netflix.net/careers?query=machine%20learning&location=United%20States&sort_by=timestamp
-    link_pattern: "/careers/job/\\d+"
-  - name: AMD
-    urls:
-      - https://careers.amd.com/careers-home/jobs?keywords=machine%20learning&location=United%20States&sortBy=posted_date
-    link_pattern: "/careers-home/jobs/\\d+"
-  - name: Uber
-    urls:
-      - https://www.uber.com/us/en/careers/list/?query=machine%20learning&location=USA
-    link_pattern: "/careers/list/\\d+"
   - name: Goldman Sachs    # campus / analyst roles live on higher.gs.com (lateral roles come via Oracle)
     urls:
       - https://higher.gs.com/results?EXPERIENCE_LEVEL=Analyst&LOCATION=Dallas|New%20York|Jersey%20City|Salt%20Lake%20City|San%20Francisco&page=1&sort=POSTED_DATE
@@ -376,7 +471,7 @@ career_pages:
     urls:
       - https://jobs.bytedance.com/en/position?keywords=machine%20learning&location=CT_1000,CT_157&project=7322364513776093449
       - https://jobs.bytedance.com/en/position?keywords=graduate&location=CT_1000,CT_157
-    link_pattern: "/position/\\d+/detail"
+    link_pattern: "(joinbytedance\\.com/search/\\d{10,}|/position/\\d+/detail)"
   - name: Tesla            # Tesla often blocks headless browsers; community lists still cover its new-grad roles
     enabled: true
     urls:
@@ -414,17 +509,20 @@ regions:
 # ── Your profile: resume keyword matching (edit to match your resumes) ──
 profile:
   resumes:
+    # A leading "=" makes a term case-sensitive, for skills that are also ordinary words
+    # ("=Go" matches "Go", not "go beyond"; "=C" matches "C", not "Level C").
     SDE:
       - python
-      - go
+      - "=Go"
       - golang
       - c++
       - c#
-      - c
+      - "=C"
       - sql
       - javascript
       - typescript
-      - rest
+      - "=REST"
+      - restful
       - rest apis
       - graphql
       - .net
@@ -433,7 +531,7 @@ profile:
       - gorm
       - rbac
       - aws
-      - lambda
+      - aws lambda
       - s3
       - aws batch
       - cloudformation
@@ -472,10 +570,13 @@ profile:
       - computer vision
       - deep learning
       - machine learning
-      - segmentation
+      - image segmentation
+      - semantic segmentation
+      - instance segmentation
       - depth estimation
       - object detection
-      - tracking
+      - object tracking
+      - multi-object tracking
       - perception
       - autonomous driving
       - llm
@@ -487,7 +588,8 @@ profile:
       - fine-tuning
       - quantization
       - langchain
-      - evaluation
+      - model evaluation
+      - evals
       - multimodal
       - nlp
       - aws
@@ -497,11 +599,11 @@ profile:
       - fastapi
       - data pipelines
   # Tech terms the matcher should recognise even though they're not on your resumes (shown as "missing").
-  extra_vocab: [java, kotlin, scala, rust, ruby, php, swift, react, node.js, nodejs, angular, vue,
+  extra_vocab: [java, kotlin, scala, rust, ruby, php, react, node.js, nodejs, angular, vue,
     kubernetes, k8s, terraform, gcp, azure, spark, hadoop, kafka, airflow, flink, snowflake, redis,
     dynamodb, cassandra, grpc, cuda, triton, tensorrt, jax, ros, slam, lidar, 3d, point cloud,
-    reinforcement learning, diffusion, mlops, spark, ray, onnx, verilog, embedded, android, ios,
-    javascript, html, css, bash, spring, django, kotlin, elixir, haskell, matlab, r, tableau]
+    reinforcement learning, diffusion, mlops, "=Ray", onnx, verilog, embedded, android, "=iOS",
+    html, css, bash, spring boot, django, elixir, haskell, matlab, "=R", tableau, "=Swift"]
 
 # Map company names to their legal H-1B filer names when they differ (lowercase, no punctuation).
 h1b_aliases:

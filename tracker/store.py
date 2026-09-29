@@ -91,8 +91,9 @@ class Store:
         if job.source not in rec.setdefault("sources", []):
             rec["sources"].append(job.source)
             changed = True
-        if rec.get("sponsorship", "unknown") == "unknown" and job.sponsorship_hint:
-            rec["sponsorship"] = job.sponsorship_hint
+        # community labels (Simplify…) are often wrong: kept separately as "unverified", never as sponsorship
+        if job.sponsorship_hint and not rec.get("community_label"):
+            rec["community_label"] = job.sponsorship_hint
             changed = True
         self.dirty |= changed
         return changed

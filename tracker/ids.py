@@ -83,8 +83,10 @@ def board_key(c):
     """Stable key for a company board config."""
     if c["ats"] == "workday":
         return f"workday:{c['tenant'].lower()}/{c['site'].lower()}"
-    if c["ats"] == "amazon":
-        return "amazon:amazon"
+    if c["ats"] in ("amazon", "apple"):
+        return f"{c['ats']}:{c['ats']}"
+    if c["ats"] == "jibe":
+        return f"jibe:{c['host'].lower()}"
     if c["ats"] == "oracle":
         return f"oracle:{c['host'].split('.')[0]}/{c['site'].lower()}"
     if c["ats"] == "eightfold":
@@ -145,6 +147,15 @@ def uid_from_url(url):
     m = re.search(r"/careers/job/(\d{6,})", p.path)
     if m:                                                   # Eightfold (Microsoft, Qualcomm, Netflix, ...)
         return f"ef:{m.group(1)}"
+    if host.endswith("jobs.apple.com"):
+        m = re.search(r"/details/(?:[A-Z]+-)?(\d+)", p.path)
+        if m:
+            return f"apple:{m.group(1)}"
+    if "careers-home" in segs and "jobs" in segs:           # iCIMS Jibe sites (careers.amd.com …)
+        i = segs.index("jobs")
+        if i + 1 < len(segs) and segs[i + 1].isdigit():
+            parts = host.split(".")
+            return f"jibe:{parts[1] if len(parts) > 2 else parts[0]}:{segs[i + 1]}"
     if host.endswith("amazon.jobs"):
         m = re.search(r"/jobs/(\d+)", p.path)
         if m:

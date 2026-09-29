@@ -29,6 +29,7 @@ class World:
         self.boards = {}
         self.community = []
         self.sent = []
+        self.detail = None          # fake description fetcher (tests stay offline)
 
 
 def make_run(world, tmp, ai=False):
@@ -50,6 +51,7 @@ def make_run(world, tmp, ai=False):
         mock.patch.object(run, "load_companies", lambda: [{"name": "Acme Robotics", "ats": "greenhouse", "token": "acme"}]),
         mock.patch.object(run, "fetch_board", fake_fetch_board),
         mock.patch.object(run, "fetch_aggregators", fake_aggr),
+        mock.patch.object(run, "detail_from_url", lambda url: world.detail(url) if world.detail else None),
         mock.patch.object(run, "DATA", tmp / "data"),
         mock.patch.object(export, "ROOT", tmp),
         mock.patch.object(export, "OUT", tmp / "data" / "dashboard"),
@@ -178,11 +180,13 @@ def test_recheck_and_backfill():
 
     def gone():
         raise NotFound("x")
-    with mock.patch.object(run, "crc32", lambda b: slot), mock.patch.object(run, "detail_from_url", lambda u: gone):
+    w.detail = lambda u: gone
+    with mock.patch.object(run, "crc32", lambda b: slot):
         go()
         db = json.loads((tmp / "data" / "jobs.json").read_text())
         assert db["wd:acme:r1"]["status"] == "open" and db["wd:acme:r1"]["miss"] == 1
         go()
+    w.detail = None
     db = json.loads((tmp / "data" / "jobs.json").read_text())
     assert db["wd:acme:r1"]["status"] == "closed", db["wd:acme:r1"]
 

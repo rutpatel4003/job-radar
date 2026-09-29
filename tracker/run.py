@@ -11,15 +11,15 @@ from datetime import datetime, timedelta, timezone
 
 from .config import ROOT, env, load_companies, load_config
 from .export import export_dashboard, write_detail
-from .filters import (ResumeMatcher, TitleFilter, analyze_description, classify_start, fingerprint,
-                      location_status, norm_company)
+from .filters import (ResumeMatcher, Staffing, TitleFilter, analyze_description, classify_start, fingerprint,
+                      location_status, norm_company, years_verdict)
 from .ai_filter import AIFilter, compact
 from .h1b import H1B
 from .notify import notify
 from .ids import board_key
 from .sources import detail_from_url, fetch_board
 from .sources.aggregators import fetch_all as fetch_aggregators
-from .sources.community import fetch_markdown_list, fetch_simplify
+from .sources.community import fetch_applyguy, fetch_markdown_list, fetch_simplify, save_redirects
 from types import SimpleNamespace
 from zlib import crc32
 
@@ -28,6 +28,7 @@ from .sources.pagewatch import fetch_pages, fetch_texts
 from .store import Store
 
 DATA = ROOT / "data"
+ANALYSIS_VERSION = 2     # bump to re-run description analysis on saved jobs once (see migrate())
 CLEARANCE_TITLE = re.compile(r"ts/sci|clearance|\bsecret\b|polygraph|u\.?s\.? citizen|\bus person", re.I)
 
 
@@ -128,6 +129,8 @@ def main():
             tasks.append((u, lambda u=u: fetch_simplify(u, cl.get("max_age_days", 120))))
         for u in cl.get("markdown", []):
             tasks.append((u, lambda u=u: fetch_markdown_list(u)))
+        for u in cl.get("applyguy", []):
+            tasks.append((u, lambda u=u: fetch_applyguy(u)))
         tasks.append(("aggregators", lambda: fetch_aggregators(cfg)))
     if not args.pages_only:
         # cheap full-list boards first, then search-based ones; priority companies before the rest.
@@ -289,9 +292,16 @@ def main():
     ncfg = cfg.get("notifications", {})
     seed_hours = ncfg.get("seed_notify_hours", 48)
     matcher = ResumeMatcher(cfg)
+    staffing = Staffing(cfg)
+    stcfg = cfg.get("staffing") or {}
     scfg = cfg.get("start_date") or {}
     ym = lambda v, d: tuple(int(x) for x in str(v or d).split("-")[:2])
     grad, earliest = ym(scfg.get("graduation"), "2027-05"), ym(scfg.get("earliest_start"), "2027-06")
+    migrated = False
+    if not args.dry_run and not args.only and state.get("analysis_version", 1) < ANALYSIS_VERSION:
+        migrate(store, matcher, (grad, earliest), cfg, tf, staffing)
+        state["analysis_version"] = ANALYSIS_VERSION
+        migrated = True
     h1b = H1B()
     aliases = cfg.get("h1b_aliases") or {}
     if h1b:
@@ -325,9 +335,9 @@ def main():
         community = job.sponsorship_hint or next((t.sponsorship_hint for t in item["twins"] if t.sponsorship_hint), None)
         if "PhD" in (job.degree_hint or []) and len(job.degree_hint) == 1:
             info["phd"] = True
-        hidden_reason = None
-        if not ncfg.get("include_hidden") and info["min_years"] and info["min_years"] >= exp.get("hide_min_years", 5):
-            hidden_reason = f"asks for {info['min_years']}+ years"
+        flag_years, hidden_reason = years_verdict(info["min_years"], item["tags"], exp)
+        if ncfg.get("include_hidden"):
+            hidden_reason = None
         match = matcher.score(job.description)
         rec = {
             "uid": uid, "company": job.company, "title": job.title, "url": job.url,
@@ -338,20 +348,24 @@ def main():
             "sponsorship": info["sponsorship"],
             "community_label": community,
             "h1b": h1b.lookup(job.company, aliases) if h1b else None,
-            "min_years": info["min_years"] if (info["min_years"] or 0) >= exp.get("flag_min_years", 3) else None,
+            "min_years": flag_years,
             "phd": info["phd"], "salary": info["salary"], "fp": item["fp"], "aliases": [], "alt_urls": [],
             "has_desc": bool(job.description and len(job.description) > 200),
             "desc_tried": item.get("browser_tried") or None,
             "start": start,
             "priority": is_prio(job.company),
+            "ana": ANALYSIS_VERSION,
         }
         if match:
             rec.update(match)
+        if staffing.check(job.company, job.board):
+            rec["staffing"] = True
+        elif staffing.check("", "", job.description):
+            rec["staffing"], rec["staffing_src"] = True, "text"
         if item["seed"]:
             rec["seeded"] = True          # part of an initial backlog: found time ≠ posting time
         if hidden_reason:
-            rec["hidden"] = True
-            rec["hidden_reason"] = hidden_reason
+            rec["hidden"], rec["hidden_reason"], rec["auto_hidden"] = True, hidden_reason, True
         prev_status = None
         if item["repost_of"]:
             rec["repost_of"] = item["repost_of"]["uid"]
@@ -362,11 +376,13 @@ def main():
         store.add(rec)
         for twin in item["twins"]:
             store.add_alias(rec, twin)
-        if not args.dry_run and not hidden_reason:
-            rec["d"] = write_detail(rec, job, info)
+        if not args.dry_run:
+            rec["d"] = write_detail(rec, job, info)      # hidden jobs too, so you can check why they were hidden
         if hidden_reason:
             continue
         if start == "too_early" and not scfg.get("notify_too_early"):
+            continue
+        if rec.get("staffing") and not stcfg.get("notify", False):
             continue
         if prev_status == "not_interested":
             continue
@@ -418,26 +434,43 @@ def main():
         events = [(e, r) for e, r in events if not r.get("ai_hidden")]
 
     # ── 3c. Re-apply today's filters to jobs saved earlier (e.g. after editing config.yaml) ──
-    hide_years = cfg.get("experience", {}).get("hide_min_years", 5)
     refiltered = restored = 0
     for r in store.jobs.values():
         if r["status"] != "open" or r["uid"] in pending:
             continue
-        keep = tf.evaluate(r["title"])[0] or r.get("source") == "hn"
-        years = r.get("min_years") or 0
-        reason = None if keep and years < hide_years else \
-            ("no longer matches your title/level filters" if not keep else f"asks for {years}+ years")
+        keep, cats, tags = tf.evaluate(r["title"])
+        if r.get("source") == "hn":
+            keep = True
+        elif keep and (cats != r.get("categories") or tags != r.get("tags", [])):
+            r["categories"], r["tags"] = cats, tags          # title rules changed (e.g. new-grad markers)
+            store.dirty = True
+        _, years_reason = years_verdict(r.get("min_years"), r.get("tags"), exp)
+        reason = None if keep and not years_reason else \
+            ("no longer matches your title/level filters" if not keep else years_reason)
+        regex_hidden = r.get("auto_hidden") or (r.get("hidden_reason") or "").startswith("asks for")
         if reason and not r.get("hidden"):
             r["hidden"], r["hidden_reason"], r["auto_hidden"] = True, reason, True
             store.dirty = True
             refiltered += 1
-        elif not reason and r.get("auto_hidden"):
+        elif reason and regex_hidden and r.get("hidden_reason") != reason:
+            r["hidden_reason"], r["auto_hidden"] = reason, True
+            store.dirty = True
+        elif not reason and r.get("hidden") and regex_hidden:
             for k in ("hidden", "hidden_reason", "auto_hidden"):
                 r.pop(k, None)
             store.dirty = True
             restored += 1
+        if r.get("staffing_src") != "text":                   # name / board based tag follows config.yaml
+            st = staffing.check(r["company"], r["board"])
+            if bool(r.get("staffing")) != st:
+                if st:
+                    r["staffing"] = True
+                else:
+                    r.pop("staffing", None)
+                store.dirty = True
     if refiltered or restored:
         print(f"[filters] hid {refiltered} saved jobs that no longer match your settings, restored {restored}")
+    mark_clearance_pattern(store, cfg)
 
     # ── 4. Closed-job detection ──
     closed = 0
@@ -501,9 +534,9 @@ def main():
     #   first through the job board's own API (cheap), then with the browser while time remains
     if not args.only and not args.dry_run and time.time() < deadline - 60:
         todo = [r for r in store.jobs.values()
-                if r["status"] == "open" and not r.get("hidden") and not r.get("has_desc")
-                and not r.get("api_tried") and r["uid"] not in pending]
-        todo.sort(key=lambda r: (not r.get("priority"), r["first_seen"]))
+                if r["status"] == "open" and (not r.get("hidden") or r.get("recheck_hidden"))
+                and not r.get("has_desc") and not r.get("api_tried") and r["uid"] not in pending]
+        todo.sort(key=lambda r: (not r.get("recheck_hidden"), not r.get("priority"), r["first_seen"]))
         todo = todo[: int(rt.get("api_backfill", 800))]
 
         def api_fill(rec):
@@ -528,16 +561,17 @@ def main():
             if d == "gone":
                 store.missed(rec, now)
             elif isinstance(d, dict) and len(d.get("description") or "") > 200:
-                reanalyze(rec, d["description"], matcher, (grad, earliest), cfg)
+                reanalyze(rec, d["description"], matcher, (grad, earliest), cfg, staffing=staffing)
                 filled += 1
         if todo:
             print(f"[back-fill] {filled} descriptions via job-board APIs ({len(todo)} tried)")
 
     if use_browser and time.time() < deadline - 90:
         old_need = [r for r in store.jobs.values()
-                    if r["status"] == "open" and not r.get("hidden") and not r.get("has_desc")
+                    if r["status"] == "open" and (not r.get("hidden") or r.get("recheck_hidden"))
+                    and not r.get("has_desc")
                     and not r.get("desc_tried") and (r.get("api_tried") or not detail_from_url(r["url"]))]
-        old_need.sort(key=lambda r: (not r.get("priority"), r["first_seen"]), reverse=False)
+        old_need.sort(key=lambda r: (not r.get("recheck_hidden"), not r.get("priority"), r["first_seen"]))
         old_need = old_need[: int(rt.get("browser_backfill", 60))]
         if old_need:
             texts = fetch_texts([r["url"] for r in old_need], deadline=deadline - 30)
@@ -550,7 +584,8 @@ def main():
                 if texts[r["url"]] is None:          # 404 → posting is gone
                     store.missed(r, now)
                     continue
-                reanalyze(r, texts[r["url"]], matcher, (grad, earliest), cfg, write=not args.dry_run)
+                reanalyze(r, texts[r["url"]], matcher, (grad, earliest), cfg, write=not args.dry_run,
+                          staffing=staffing)
                 filled += 1
             print(f"[browser] back-filled descriptions for {filled} older jobs")
 
@@ -591,10 +626,11 @@ def main():
                   f"h1b={((r.get('h1b') or {}).get('tech'))} | match={r.get('match')} {r.get('resume', '')}")
         return
 
-    state_changed = bool(new_boards) or dead != state.get("dead_boards", {})
+    state_changed = bool(new_boards) or dead != state.get("dead_boards", {}) or migrated
     if store.dirty or not (DATA / "dashboard" / "jobs.json").exists():
         store.save()
-        export_dashboard(store, len(companies), cfg.get("regions"))
+        export_dashboard(store, len(companies), cfg.get("regions"), cfg.get("dashboard"))
+    save_redirects()
     if state_changed:
         state["boards_seen"] = sorted(boards_seen | new_boards)
         state["dead_boards"] = dead
@@ -620,30 +656,118 @@ def main():
         notify(events[:cap], dash, f"<b>🆕 {len(events)} new role{'s' if len(events) != 1 else ''}{extra}</b>")
 
 
-def reanalyze(rec, text, matcher, dates, cfg, write=True):
-    """Re-run description analysis for an existing record once its description becomes available."""
+def reanalyze(rec, text, matcher, dates, cfg, write=True, staffing=None, prev=None):
+    """Re-run description analysis for an existing record once its description becomes available
+    (or after the analysis rules changed). Hides / un-hides for years; never touches AI or manual hides."""
     grad, earliest = dates
     exp = cfg.get("experience", {})
     info = analyze_description(text)
     start, sev = classify_start(rec["title"], text, grad, earliest)
     info["start_evidence"] = sev
+    tm = CLEARANCE_TITLE.search(rec["title"])
+    if tm and info["sponsorship"] != "citizen":
+        info["sponsorship"], info["sponsorship_evidence"] = "citizen", f"Job title says: “{rec['title']}”"
     if info["sponsorship"] != "unknown":
         rec["sponsorship"] = info["sponsorship"]
-    my = info["min_years"]
-    rec["min_years"] = my if (my or 0) >= exp.get("flag_min_years", 3) else None
+        rec.pop("sponsorship_src", None)
+    elif rec.get("sponsorship_src") != "ai":
+        rec["sponsorship"] = "unknown"           # the description is the authority, not a community label
+    flag, hide = years_verdict(info["min_years"], rec.get("tags"), exp)
+    rec["min_years"] = flag
     rec["phd"] = info["phd"]
     rec["salary"] = info["salary"] or rec.get("salary")
     if start != "unknown" or rec.get("start") == "unknown":
         rec["start"] = start
     rec["has_desc"] = len(text) > 200
     m = matcher.score(text)
+    for k in ("match", "resume", "missing", "matched"):
+        rec.pop(k, None)
     if m:
         rec.update(m)
-    if my and my >= exp.get("hide_min_years", 5) and not cfg.get("notifications", {}).get("include_hidden"):
-        rec["hidden"], rec["hidden_reason"] = True, f"asks for {my}+ years"
+    if staffing and not rec.get("staffing") and staffing.check("", "", text):
+        rec["staffing"], rec["staffing_src"] = True, "text"
+    regex_hidden = rec.get("auto_hidden") or (rec.get("hidden_reason") or "").startswith("asks for")
+    if hide and not cfg.get("notifications", {}).get("include_hidden"):
+        if not rec.get("hidden") or regex_hidden:
+            rec["hidden"], rec["hidden_reason"], rec["auto_hidden"] = True, hide, True
+    elif (rec.get("hidden_reason") or "").startswith("asks for"):
+        for k in ("hidden", "hidden_reason", "auto_hidden"):
+            rec.pop(k, None)
+    rec.pop("recheck_hidden", None)
+    rec["ana"] = ANALYSIS_VERSION
     if write:
-        job = SimpleNamespace(description=text, employment=None, locations=rec.get("locations") or [], degree_hint=None)
+        prev = prev or {}
+        job = SimpleNamespace(description=text, employment=prev.get("employment"),
+                              locations=prev.get("all_locations") or rec.get("locations") or [],
+                              degree_hint=prev.get("degrees"))
         rec["d"] = write_detail(rec, job, info)
+
+
+def migrate(store, matcher, dates, cfg, tf, staffing):
+    """One-time pass after the analysis rules change (ANALYSIS_VERSION):
+      • jobs whose description is saved are re-analysed from it right away (match %, years, start date);
+      • jobs hidden for "N+ years" whose description was deleted are queued to be fetched again, so wrongly
+        hidden ones (e.g. "must be 18 years of age" read as 18 years of experience) come back."""
+    details = DATA / "dashboard" / "details"
+    redone = queued = 0
+    t = time.time()
+    for r in store.jobs.values():
+        if r["status"] != "open" or r.get("ana", 1) >= ANALYSIS_VERSION:
+            continue
+        keep, cats, tags = tf.evaluate(r["title"])
+        if keep and r.get("source") != "hn":
+            r["categories"], r["tags"] = cats, tags
+        prev = None
+        if r.get("d"):
+            try:
+                prev = json.loads((details / f"{r['d']}.json").read_text())
+            except Exception:
+                prev = None
+        text = (prev or {}).get("description") or ""
+        if len(text) > 200:
+            reanalyze(r, text, matcher, dates, cfg, staffing=staffing, prev=prev)
+            redone += 1
+        else:
+            # sponsorship copied from a community label on a later sighting (old bug) → back to unknown
+            if r.get("sponsorship", "unknown") != "unknown" and r.get("sponsorship_src") != "ai" \
+                    and not (prev or {}).get("sponsorship_evidence") and not CLEARANCE_TITLE.search(r["title"]):
+                r["community_label"] = r.get("community_label") or r["sponsorship"]
+                r["sponsorship"] = "unknown"
+            if (r.get("hidden_reason") or "").startswith("asks for"):
+                r["recheck_hidden"] = True
+                r["has_desc"] = False
+                r.pop("api_tried", None)
+                r.pop("desc_tried", None)
+                queued += 1
+            r["ana"] = ANALYSIS_VERSION
+        store.dirty = True
+    print(f"[migrate] re-analysed {redone} saved descriptions, queued {queued} hidden jobs to re-fetch "
+          f"({time.time() - t:.0f}s)")
+
+
+def mark_clearance_pattern(store, cfg):
+    """Soft flag: companies whose jobs mostly say citizens-only / clearance → their silent jobs are 'likely'."""
+    from collections import Counter, defaultdict
+    cp = cfg.get("clearance_pattern") or {}
+    min_known, share = int(cp.get("min_known", 4)), float(cp.get("share", 0.7))
+    by = defaultdict(Counter)
+    open_jobs = [r for r in store.jobs.values() if r["status"] == "open"]
+    for r in open_jobs:
+        if r.get("sponsorship_src") != "ai":
+            by[norm_company(r["company"])][r.get("sponsorship", "unknown")] += 1
+    likely = set()
+    for co, c in by.items():
+        known = c["citizen"] + c["no_sponsor"] + c["sponsors"]
+        if known >= min_known and c["citizen"] / known >= share:
+            likely.add(co)
+    for r in open_jobs:
+        want = r.get("sponsorship", "unknown") == "unknown" and norm_company(r["company"]) in likely
+        if bool(r.get("clearance_likely")) != want:
+            if want:
+                r["clearance_likely"] = True
+            else:
+                r.pop("clearance_likely", None)
+            store.dirty = True
 
 
 def notify_text(text, dash):

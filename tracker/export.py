@@ -25,7 +25,8 @@ def tracked_uids():
 FIELDS = ("uid", "d", "company", "title", "url", "locations", "loc_status", "categories", "tags",
           "sources", "posted_at", "first_seen", "status", "closed_at", "sponsorship", "community_label",
           "h1b", "min_years", "phd", "salary", "match", "resume", "missing", "repost_of",
-          "repost_first_seen", "reopened_at", "alt_urls", "has_desc", "start", "priority", "prev_status", "ai", "ai_hidden", "sponsorship_src", "seeded")
+          "repost_first_seen", "reopened_at", "alt_urls", "has_desc", "start", "priority", "prev_status", "ai", "ai_hidden", "sponsorship_src", "seeded",
+          "hidden", "hidden_reason", "staffing", "clearance_likely")
 
 
 def detail_id(uid):
@@ -50,13 +51,15 @@ def write_detail(rec, job, info):
     return did
 
 
-def export_dashboard(store, company_count, regions=None):
+def export_dashboard(store, company_count, regions=None, dash=None):
     cutoff = (datetime.now(timezone.utc) - timedelta(days=KEEP_CLOSED_DAYS)).isoformat()
     rows, keep_ids = [], set()
     tracked = tracked_uids()
     for r in store.jobs.values():
         mine = r["uid"] in tracked
-        if r.get("hidden") and not mine and not r.get("ai_hidden"):   # AI-rejected jobs stay reviewable
+        # Hidden jobs are exported too (the dashboard hides them unless you tick "Show hidden"), so a wrongly
+        # hidden job can be spotted and its reason / evidence checked. Closed hidden jobs are dropped.
+        if r.get("hidden") and r["status"] == "closed" and not mine:
             continue
         if r["status"] == "closed" and (r.get("closed_at") or "") < cutoff and not mine:
             continue
@@ -67,8 +70,9 @@ def export_dashboard(store, company_count, regions=None):
     out = {
         "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
         "boards": company_count,
-        "open": sum(r["status"] == "open" and not r.get("ai_hidden") for r in rows),
+        "open": sum(r["status"] == "open" and not r.get("hidden") for r in rows),
         "regions": regions or {},
+        "stale_days": (dash or {}).get("stale_days", 180),
         "jobs": rows,
     }
     p = OUT / "jobs.json"

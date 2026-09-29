@@ -40,10 +40,10 @@ def _collect_links(page, pattern):
 def _title_from(text):
     """Anchor text often contains title + location + blurb; keep the first meaningful line."""
     for line in (text or "").split("\n"):
-        line = line.strip()
-        if 4 <= len(line) <= 160 and not line.lower().startswith(("learn more", "apply", "view")):
+        line = re.sub(r"^(learn more about|view job|view|apply (now )?(for|to))\s+", "", line.strip(), flags=re.I)
+        if 4 <= len(line) <= 160 and not line.lower().startswith(("learn more", "apply", "view", "job details")):
             return line
-    return _clean(text)[:160]
+    return re.sub(r"^learn more about\s+", "", _clean(text), flags=re.I)[:160]
 
 
 def fetch_pages(pages, is_known, max_details=25, wanted=None, deadline=None):

@@ -9,21 +9,35 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 def load_config():
-    with open(ROOT / "config.yaml") as f:
+    with open(ROOT / "config.yaml", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 
+_LITERAL = re.compile(r"[a-z0-9 .#+/&'’-]+")
+
+
 def compile_terms(terms):
-    """Plain words/phrases → whole-word regex; entries with regex symbols are used as-is."""
+    """Plain words/phrases → whole-word regex; entries with regex symbols are used as-is.
+
+    Skill names like "c++", "c#", ".net", "node.js", "ci/cd" are always literal (before, "c++" was
+    compiled as a regex and on Python 3.11+ matched any letter "c").
+    A leading "=" makes the term case-sensitive: "=Go" matches "Go" but not "go ahead".
+    """
     out = []
     for t in terms or []:
-        t = str(t).strip().lower()
+        t = str(t).strip()
+        case = t.startswith("=")
+        t = t[1:] if case else t.lower()
         if not t:
             continue
-        if re.search(r"[\\\[\]()?*+{}|^$]", t):
-            out.append(re.compile(t))
+        if case:
+            out.append(re.compile(r"(?<![A-Za-z0-9])" + re.escape(t) + r"(?![A-Za-z0-9+#])"))
+        elif _LITERAL.fullmatch(t) or not re.search(r"[\\\[\]()?*+{}|^$]", t):
+            # a 1-2 letter term must not match the start of "c++" / "c#"; longer ones may ("Staff+")
+            tail = r"(?![a-z0-9+#])" if len(t) <= 2 else r"(?![a-z0-9])"
+            out.append(re.compile(r"(?<![a-z0-9])" + re.escape(t) + tail))
         else:
-            out.append(re.compile(r"(?<![a-z0-9])" + re.escape(t) + r"(?![a-z0-9])"))
+            out.append(re.compile(t))
     return out
 
 
@@ -35,7 +49,7 @@ def load_companies():
     p = ROOT / "data" / "companies.json"
     if p.exists():
         auto = json.loads(p.read_text())
-    with open(ROOT / "companies.yaml") as f:
+    with open(ROOT / "companies.yaml", encoding="utf-8") as f:
         manual_cfg = yaml.safe_load(f) or {}
     exclude = {e.strip().lower() for e in manual_cfg.get("exclude") or []}
 

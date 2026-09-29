@@ -8,13 +8,26 @@ from .config import compile_terms
 # ── Titles ──────────────────────────────────────────────────────────────────
 
 
+# "Software Engineer - Emerging Talent" → role part "software engineer", team/program part "emerging talent"
+_TITLE_SPLIT = re.compile(r"\s+[-–—|:]\s+|,\s*|\s*\(|\s+/\s+")
+# "Member of Technical Staff" is an entry-level title at AI labs, not a Staff-level role
+_MTS = re.compile(r"\b(member of (the )?technical staff|technical staff member)\b")
+# Titles that are only "Engineer" + a strong new-grad marker ("Engineer, New Grad 2027", "New Grad Engineer")
+_STRONG_NG = re.compile(r"\b(new (college )?grad(uate)?s?|university (grad(uate)?|hire)|college grad(uate)?|early[- ]career|"
+                        r"entry[- ]level|rotational|residency|resident|20\d\d)\b")
+_GENERIC_LEFT = re.compile(r"^(engineer(ing|s)?|software|developer|program|programme|technical|i|1|the|and|&|of|for|in|"
+                           r"start|hire|us|usa|united|states|role|position|track)$")
+
+
 class TitleFilter:
     def __init__(self, cfg):
         self.cats = {name: compile_terms(terms) for name, terms in cfg["title_keywords"].items()}
         self.role = compile_terms(cfg.get("role_words"))
         self.exclude = compile_terms(cfg.get("title_exclude"))
+        self.exclude_anywhere = compile_terms(cfg.get("title_exclude_anywhere"))
         lvl = cfg.get("level", {})
         self.level_exclude = compile_terms(lvl.get("exclude"))
+        self.level_role_part = compile_terms(lvl.get("exclude_in_role_part"))
         self.newgrad = compile_terms(lvl.get("newgrad_markers"))
         self.level_ii = compile_terms(lvl.get("flag_as_level_ii"))
         self.exclude_level_ii = bool(lvl.get("exclude_level_ii"))
@@ -22,23 +35,47 @@ class TitleFilter:
     @staticmethod
     def _norm(title):
         t = html.unescape(title or "").lower()
-        return re.sub(r"\s+", " ", t)
+        return re.sub(r"\s+", " ", t).strip()
 
-    def categories(self, title):
-        t = self._norm(title)
+    def _cats(self, t):
         return [name for name, pats in self.cats.items() if any(p.search(t) for p in pats)]
 
+    def categories(self, title):
+        return self._cats(self._norm(title))
+
+    def _generic_newgrad(self, t):
+        """'Engineer, New Grad 2027' / 'New Grad Engineer' / 'Engineering Resident' → counts as SDE."""
+        if not _STRONG_NG.search(t) or not re.search(r"\b(engineer(ing)?|developer)\b", t):
+            return False
+        rest = _STRONG_NG.sub(" ", t)
+        rest = [w for w in re.split(r"[^a-z0-9&]+", rest) if w]
+        return all(_GENERIC_LEFT.match(w) for w in rest)
+
     def evaluate(self, title):
-        """Return (keep, categories, tags). tags ⊂ {"newgrad", "level2"}."""
+        """Return (keep, categories, tags). tags ⊂ {"newgrad", "level2"}.
+
+        Exclusion words ("talent", "customer", "support", "lead"…) are checked only against the role part of
+        the title when the role part is itself a real engineering title, so team names after a dash or comma
+        ("ML Engineer Graduate - Lead Ads", "SWE - Emerging Talent") no longer drop the job. Seniority words
+        (senior, staff, principal, intern…) and employment-type words (contract, part-time) apply to the
+        whole title.
+        """
         t = self._norm(title)
-        cats = [name for name, pats in self.cats.items() if any(p.search(t) for p in pats)]
+        cats = self._cats(t)
+        if not cats and self._generic_newgrad(t):
+            cats = ["SDE"]
         if not cats:
             return False, [], []
         if self.role and not any(p.search(t) for p in self.role):
             return False, cats, []
-        if any(p.search(t) for p in self.exclude):
+        head = _TITLE_SPLIT.split(t, 1)[0].strip()
+        head_ok = head != t and bool(self._cats(head)) and any(p.search(head) for p in self.role)
+        scope = head if head_ok else t
+        if any(p.search(scope) for p in self.exclude) or any(p.search(t) for p in self.exclude_anywhere):
             return False, cats, []
-        if any(p.search(t) for p in self.level_exclude):
+        t_lvl = _MTS.sub(" ", t)
+        if any(p.search(t_lvl) for p in self.level_exclude) or \
+                any(p.search(_MTS.sub(" ", scope)) for p in self.level_role_part):
             return False, cats, []
         tags = []
         if any(p.search(t) for p in self.newgrad):
@@ -177,6 +214,7 @@ _YES = [re.compile(p, re.I) for p in SPONSORS]
 _YEARS = re.compile(r"(\d{1,2})\s*(?:\+|or more|plus)?\s*(?:-|–|to)?\s*(?:\d{1,2})?\s*\+?\s*(?:years|yrs)", re.I)
 _DEGREE_ALT = re.compile(r"\bor\b[^.;\n]{0,50}\b(master'?s?|m\.?s\.?|m\.?eng|ph\.?\s?d|graduate|advanced)\b", re.I)
 _DEGREE_FIRST = re.compile(r"\b(master'?s?|m\.?s\.?|ph\.?\s?d|graduate degree|advanced degree)\b[^.;\n]{0,60}\b(or|and|with|plus)\s*$", re.I)
+_AGE = re.compile(r"\s*(?:of\s+age|old\b|or\s+older|and\s+(?:older|over)|\+?\s*of\s+age)", re.I)
 _PHD_REQ = re.compile(r"(ph\.?\s?d\.?)[^.\n]{0,40}(required|is a must)|(require[sd]?|must\s+have|minimum)[^.\n]{0,80}ph\.?\s?d", re.I)
 
 
@@ -223,6 +261,8 @@ def analyze_description(text):
 
     years, yev = [], None
     for m in _YEARS.finditer(t):
+        if _AGE.match(t, m.end()):
+            continue                      # "must be 18 years of age or older" is not an experience requirement
         window = t[m.start(): m.end() + 80]
         before = t[max(0, m.start() - 30): m.start()]
         wide_before = t[max(0, m.start() - 90): m.start()]
@@ -256,18 +296,20 @@ class ResumeMatcher:
 
     def __init__(self, cfg):
         prof = cfg.get("profile") or {}
-        self.resumes = {name: {s.lower(): compile_terms([s])[0] for s in skills}
-                        for name, skills in (prof.get("resumes") or {}).items()}
-        vocab = set(prof.get("extra_vocab") or [])
-        for skills in (prof.get("resumes") or {}).values():
-            vocab |= set(skills)
-        self.vocab = {v.lower(): compile_terms([v])[0] for v in vocab}
+        key = lambda s: str(s).lstrip("=").lower()
+        self.resumes = {name: {key(s) for s in skills} for name, skills in (prof.get("resumes") or {}).items()}
+        vocab = {}
+        for s in list(prof.get("extra_vocab") or []) + [s for sk in (prof.get("resumes") or {}).values() for s in sk]:
+            # "=Go" (case-sensitive) wins over a plain "go" so ambiguous words stay case-sensitive
+            if key(s) not in vocab or str(s).startswith("="):
+                vocab[key(s)] = (compile_terms([s])[0], str(s).startswith("="))
+        self.vocab = vocab
 
     def score(self, text):
         if not text or not self.resumes:
             return None
         t = text.lower()
-        mentioned = {k for k, p in self.vocab.items() if p.search(t)}
+        mentioned = {k for k, (p, case) in self.vocab.items() if p.search(text if case else t)}
         if len(mentioned) < 3:
             return None
         best = None
@@ -278,6 +320,51 @@ class ResumeMatcher:
                 missing = sorted(mentioned - set(skills))
                 best = {"match": pct, "resume": name, "missing": missing[:6], "matched": sorted(have)[:8]}
         return best
+
+
+def years_verdict(min_years, tags, exp):
+    """Return (years to show as a ⏳ flag or None, reason to hide or None).
+
+    A title that says new grad / early career / Engineer I is flagged, never hidden, for a years
+    requirement: those postings often list "2+ years" that internships count toward."""
+    flag = min_years if (min_years or 0) >= exp.get("flag_min_years", 2) else None
+    hide = None
+    if min_years and min_years >= exp.get("hide_min_years", 3):
+        if not ("newgrad" in (tags or []) and exp.get("never_hide_newgrad_titles", True)):
+            hide = f"asks for {min_years}+ years"
+    return flag, hide
+
+
+# ── Staffing agencies / contract body shops ─────────────────────────────────
+
+_STAFFING_NAME = re.compile(r"\b(staffing|recruit(ing|ment|ers)?|talent solutions|infotech|info tech|manpower|"
+                            r"outsourc\w*|it solutions|consultants? group|h1b)\b", re.I)
+_STAFFING_TEXT = re.compile(r"\b(c2c|corp[- ]to[- ]corp|w-?2 only|only w-?2|on w-?2|h-?1b transfers?|our client|"
+                            r"end client|direct client|implementation partner|contract[- ]to[- ]hire|\bc2h\b|"
+                            r"visa (status )?(any|all)|all visas?)\b", re.I)
+
+
+class Staffing:
+    """Tags staffing agencies / C2C body shops. They are kept (some sponsor) but hidden on the dashboard by
+    default and not notified, because their listings drown out real employers.
+    config.yaml → staffing: {names: [...], boards: [...]}; plus name / description heuristics."""
+
+    def __init__(self, cfg):
+        s = cfg.get("staffing") or {}
+        self.names = {norm_company(n) for n in s.get("names") or []}
+        self.boards = {str(b).lower() for b in s.get("boards") or []}
+        self.never = {norm_company(n) for n in s.get("never") or []}
+
+    def check(self, company, board="", text=None):
+        nc = norm_company(company)
+        if nc in self.never:
+            return False
+        if nc in self.names or (board or "").lower() in self.boards \
+                or (board or "").split(":", 1)[-1].lower() in self.boards:
+            return True
+        if _STAFFING_NAME.search(company or ""):
+            return True
+        return bool(text and len(_STAFFING_TEXT.findall(text[:6000])) >= 2)
 
 
 # ── Fingerprints (repost / cross-site duplicate detection) ──────────────────

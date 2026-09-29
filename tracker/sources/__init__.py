@@ -2,7 +2,9 @@
 from ..ids import board_key
 from ..http import NotFound
 from ..models import FetchResult
-from . import amazon, ashby, bamboohr, eightfold, greenhouse, lever, oracle, recruitee, rippling, smartrecruiters, workable, workday
+from . import (amazon, apple, ashby, bamboohr, eightfold, greenhouse, jibe, lever, oracle, recruitee, rippling,
+               smartrecruiters, workable, workday)
+from .community import jobright_fetcher_from_url
 
 ADAPTERS = {
     "greenhouse": greenhouse,
@@ -17,6 +19,8 @@ ADAPTERS = {
     "rippling": rippling,
     "oracle": oracle,
     "eightfold": eightfold,
+    "apple": apple,
+    "jibe": jibe,
 }
 
 
@@ -36,7 +40,8 @@ def _fetch_board(company, cfg):
         return FetchResult(key, company.get("name", key), [], ok=False, error="unknown ats")
     try:
         jobs = mod.fetch(company, cfg)
-        return FetchResult(key, company.get("name", key), jobs, complete=getattr(mod, "COMPLETE", True))
+        complete = getattr(mod, "COMPLETE", True) and getattr(jobs, "complete", True)
+        return FetchResult(key, company.get("name", key), list(jobs), complete=complete)
     except NotFound as e:
         return FetchResult(key, company.get("name", key), [], ok=False, not_found=True, error=str(e))
     except Exception as e:  # network hiccup, bad JSON, rate limit...
@@ -45,8 +50,8 @@ def _fetch_board(company, cfg):
 
 def detail_from_url(url):
     """Best-effort description fetcher for jobs found via community lists."""
-    for mod in (greenhouse, lever, smartrecruiters, workday, bamboohr, oracle):
+    for mod in (greenhouse, lever, smartrecruiters, workday, bamboohr, oracle, apple):
         f = mod.detail_fetcher_from_url(url)
         if f:
             return f
-    return None
+    return jobright_fetcher_from_url(url)

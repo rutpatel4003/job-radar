@@ -243,7 +243,12 @@ td.fresh::after{bottom:4px;left:2px;border-width:0 0 3px 3px}
     <select id="spons" aria-label="Sponsorship">
       <option value="all">Any sponsorship</option>
       <option value="nohard" selected>Hide “no sponsorship” &amp; citizens-only</option>
+      <option value="noclear">…and likely-clearance companies</option>
       <option value="likely">Likely sponsors only</option>
+    </select>
+    <select id="aifit" aria-label="AI fit" hidden>
+      <option value="0" selected>Any AI fit</option><option value="3">AI fit 3+</option>
+      <option value="4">AI fit 4+</option><option value="-1">Not AI-reviewed yet</option>
     </select>
     <select id="age" aria-label="Posted within">
       <option value="24" selected>Posted in last 24 h</option><option value="72">Posted in last 3 days</option>
@@ -254,7 +259,10 @@ td.fresh::after{bottom:4px;left:2px;border-width:0 0 3px 3px}
     <label class="toggle"><input type="checkbox" id="ng"> New-grad titles</label>
     <label class="toggle"><input type="checkbox" id="hideEarly" checked> Hide starts before June 2027</label>
     <label class="toggle"><input type="checkbox" id="hideTracked" checked> Hide jobs I’m tracking</label>
+    <label class="toggle"><input type="checkbox" id="hideStaffing" checked> Hide staffing agencies</label>
+    <label class="toggle"><input type="checkbox" id="hideStale" checked> Hide postings older than <span id="staleDays">6 months</span></label>
     <label class="toggle"><input type="checkbox" id="showClosed"> Show closed</label>
+    <label class="toggle" title="Jobs the filters hid (e.g. asks for 3+ years, title no longer matches). Each shows why."><input type="checkbox" id="showHidden"> Show hidden</label>
     <label class="toggle"><input type="checkbox" id="showAi"> Show AI-rejected</label>
     </div>
   </div>
@@ -351,7 +359,7 @@ $("#gToken").addEventListener("keydown", e => { if (e.key === "Enter") $("#gGo")
 $("#lock").addEventListener("click", lock);
 
 /* ───────────── state ───────────── */
-let JOBS = [], BYUID = {}, META = {}, REGIONS = {};
+let JOBS = [], BYUID = {}, META = {}, REGIONS = {}, AIR = {};   // AIR: local AI reviews (data/ai_review.json)
 let TAB = "jobs", view = [], page = 1, selUid = null;
 const lastVisit = LS.get("lastVisit", null);
 const PREFS_VERSION = 2;
@@ -445,6 +453,7 @@ function spons(j) {
   if (j.sponsorship === "citizen") return {cls: "bad", label: j.sponsorship_src === "ai" ? "Citizens only (AI)" : "Citizens / clearance", level: "hard", rank: 4};
   if (j.sponsorship === "no_sponsor") return {cls: "bad", label: j.sponsorship_src === "ai" ? "No sponsorship (AI)" : "No sponsorship", level: "hard", rank: 3};
   if (j.sponsorship === "sponsors") return {cls: "good", label: "Sponsors (per JD)", level: "likely", rank: 0};
+  if (j.clearance_likely) return {cls: "warn", label: "Likely clearance (company pattern)", level: "clear", rank: 2.8};
   if (n >= 20) return {cls: "good", label: `H-1B history ${n.toLocaleString()}`, level: "likely", rank: 1};
   if (n > 0) return {cls: "warn", label: `Few H-1B filings (${n})`, level: "maybe", rank: 2};
   if (n === 0) return {cls: "", label: "No H-1B record", level: "maybe", rank: 2.5};
@@ -464,7 +473,7 @@ const COLS = {
     {key: "posted", label: "Posted", cls: "", sort: j => postedOf(j) || ""},
     {key: "found", label: "Found", cls: "c-hide-m", sort: j => j.first_seen || ""},
     {key: "spons", label: "Sponsorship", cls: "c-hide-m", sort: j => spons(j).rank},
-    {key: "match", label: "Fit", cls: "c-hide-m", sort: j => (j.ai ? j.ai.fit * 1000 : 0) + (j.match ?? 0)},
+    {key: "match", label: "Fit", cls: "c-hide-m", sort: j => (AIR[j.uid] && AIR[j.uid].fit ? AIR[j.uid].fit * 1000 : j.ai ? j.ai.fit * 1000 : 0) + (j.match ?? 0)},
     {key: "status", label: "Status", cls: "", sort: j => tr(j.uid) ? ST_ORDER[tr(j.uid).status] : 99},
   ],
   mine: [
@@ -508,13 +517,19 @@ function jobRows() {
   const cats = new Set([...document.querySelectorAll("#cats button[aria-pressed=true]")].map(b => b.dataset.v));
   const sp = $("#spons").value, maxAge = +$("#age").value, ng = $("#ng").checked, pr = $("#prio").checked;
   const hideE = $("#hideEarly").checked, hideT = $("#hideTracked").checked, showC = $("#showClosed").checked;
-  const showAi = $("#showAi").checked;
+  const showAi = $("#showAi").checked, showH = $("#showHidden").checked;
+  const hideSt = $("#hideStaffing").checked, hideOld = $("#hideStale").checked, stale = (META.stale_days || 180) * 24;
+  const aiMin = +$("#aifit").value;
   const rx = REGIONS[$("#region").value];
   return JOBS.filter(j => {
     const t = tr(j.uid);
     if (t && t.status === "not_interested") return false;
     if (hideT && t) return false;
     if (j.ai_hidden && !showAi) return false;
+    if (j.hidden && !j.ai_hidden && !showH && !t) return false;
+    if (hideSt && j.staffing && !t) return false;
+    if (hideOld && j.posted_at && hoursAgo(j.posted_at) > stale && !t) return false;
+    if (aiMin) { const a = AIR[j.uid]; if (aiMin < 0 ? a : !(a && a.fit >= aiMin)) return false; }
     if (!showC && j.status === "closed") return false;
     if (!(j.categories || []).some(c => cats.has(c))) return false;
     if (ng && !(j.tags || []).includes("newgrad")) return false;
@@ -523,10 +538,12 @@ function jobRows() {
     if (rx && !rx.test((j.locations || []).join(" | ") + (j.loc_status === "remote" ? " remote" : ""))) return false;
     if (maxAge && hoursAgo(postedOf(j)) > maxAge) return false;
     const s = spons(j);
-    if (sp === "nohard" && s.level === "hard") return false;
+    if ((sp === "nohard" || sp === "noclear") && s.level === "hard") return false;
+    if (sp === "noclear" && s.level === "clear") return false;
     if (sp === "likely" && s.level !== "likely") return false;
     if (q) {
-      const hay = `${j.company} ${j.title} ${(j.locations || []).join(" ")} ${(j.missing || []).join(" ")} ${j.resume || ""}`.toLowerCase();
+      const a = AIR[j.uid] || {};
+      const hay = `${j.company} ${j.title} ${(j.locations || []).join(" ")} ${(j.missing || []).join(" ")} ${j.resume || ""} ${(a.missing || []).join(" ")} ${a.why || ""}`.toLowerCase();
       if (!q.split(/\s+/).every(w => hay.includes(w))) return false;
     }
     return true;
@@ -543,6 +560,8 @@ function mineRows() {
 function chipsFor(j) {
   const c = [];
   if (j.ai_hidden) c.push(`<span class="chip bad">AI rejected: ${esc(j.ai.why)}</span>`);
+  else if (j.hidden) c.push(`<span class="chip bad">Hidden: ${esc(j.hidden_reason || "filtered")}</span>`);
+  if (j.staffing) c.push(`<span class="chip warn">Staffing agency</span>`);
   if (j.priority) c.push(`<span class="chip star">Top company</span>`);
   if ((j.tags || []).includes("newgrad")) c.push(`<span class="chip star">New grad</span>`);
   if (j.start === "fits") c.push(`<span class="chip good">2027 start</span>`);
@@ -552,6 +571,14 @@ function chipsFor(j) {
   if (j.status === "closed") c.push(`<span class="chip">Closed</span>`);
   if (j.salary) c.push(`<span class="chip">${esc(j.salary)}</span>`);
   return c.join("");
+}
+function fitCell(j) {
+  const a = AIR[j.uid], out = [];
+  if (a && a.fit) out.push(`<span class="chip ${a.fit >= 4 ? "good" : a.fit <= 2 ? "bad" : ""}" title="${esc(a.why || "")}">AI ${a.fit}/5</span>`);
+  else if (j.ai) out.push(`<span class="chip ${j.ai.v === "reject" ? "bad" : j.ai.fit >= 4 ? "good" : ""}">AI ${j.ai.fit}/5</span>`);
+  if (j.match != null) out.push(`${j.match}% ${esc((a && a.resume) || j.resume)}`);
+  else if (a && a.resume) out.push(esc(a.resume));
+  return out.join(" ") || "—";
 }
 const stHTML = s => s ? `<span class="st st-${s}">${esc(ST_LABEL[s])}</span>` : `<span class="small">—</span>`;
 function rowJobs(j) {
@@ -563,7 +590,7 @@ function rowJobs(j) {
     <td class="muted" title="${j.posted_at ? "" : j.seeded ? "Posting date unknown" : "Posting date unknown; found by the tracker at this time"}">${j.posted_at ? ago(j.posted_at) : j.seeded ? "—" : "~" + ago(j.first_seen)}</td>
     <td class="muted c-hide-m">${ago(j.first_seen)}</td>
     <td class="c-hide-m"><span class="chip ${s.cls}">${esc(s.label)}</span></td>
-    <td class="muted c-hide-m">${j.ai ? `<span class="chip ${j.ai.v === "reject" ? "bad" : j.ai.fit >= 4 ? "good" : ""}">AI ${j.ai.fit}/5</span> ` : ""}${j.match != null ? `${j.match}% ${esc(j.resume)}` : (j.ai ? "" : "—")}</td>
+    <td class="muted c-hide-m">${fitCell(j)}</td>
     <td class="${t ? "" : "st-empty"}">${stHTML(t && t.status)}</td></tr>`;
 }
 function rowMine(r) {
@@ -600,7 +627,7 @@ function render() {
   $("#headline").innerHTML = lastVisit
     ? (fresh ? `<span class="n">${fresh}</span> new role${fresh === 1 ? "" : "s"} since ${esc(fmtDate(lastVisit))}` : `Nothing new since ${esc(fmtDate(lastVisit))}`)
     : `${(META.open || 0).toLocaleString()} open roles to go through`;
-  const day = JOBS.filter(j => j.status === "open" && !j.ai_hidden && hoursAgo(postedOf(j)) <= 24).length;
+  const day = JOBS.filter(j => j.status === "open" && !j.hidden && !j.staffing && hoursAgo(postedOf(j)) <= 24).length;
   const act = ["applied","oa","interviewing","offer"].reduce((n, s) => n + tracked.filter(t => t.status === s).length, 0);
   $("#sub").textContent = `${day.toLocaleString()} posted in the last 24 h. ${(META.open || 0).toLocaleString()} open roles from ${(META.boards || 0).toLocaleString()} company boards plus community lists. Data changed ${ago(META.generated_at)}. ${act} active application${act === 1 ? "" : "s"}.`;
   renderStChips(tracked);
@@ -662,11 +689,28 @@ function drawDetail(j, extra, keepTrack) {
   const spPanel = j.categories ? `<div class="panel ${s.cls}"><h3>${esc(s.label)}</h3>
     ${ev ? `<div class="small">From the job description:</div><p class="quote">${esc(ev)}</p>`
          : `<div class="small">The job description doesn't mention sponsorship${j.has_desc ? "" : " (no description from this source; check the posting)"}.</div>`}
+    ${j.clearance_likely ? `<p class="small" style="margin:8px 0 0">Most of this company's postings that mention it require U.S. citizenship or a security clearance, so this one probably does too.</p>` : ""}
+    ${j.staffing ? `<p class="small" style="margin:8px 0 0">Tagged as a staffing agency / contract placement firm.</p>` : ""}
     ${h ? `<p class="small" style="margin:10px 0 0">H-1B filings for tech roles (US Dept. of Labor): <b>${h.tech.toLocaleString()}</b>${h.entry ? `, ${h.entry.toLocaleString()} at entry wage levels` : ""}${h.name ? ` as “${esc(h.name)}”` : ""}.</p>` : ""}
     ${j.community_label ? `<p class="small" style="margin:6px 0 0">Community list label: ${esc({no_sponsor: "does not sponsor", citizen: "citizenship required", sponsors: "offers sponsorship"}[j.community_label] || j.community_label)} (unverified).</p>` : ""}</div>` : "";
   const matchPanel = j.match != null ? `<div class="panel"><h3>${j.match}% keyword match. Use your ${esc(j.resume)} resume.</h3>
     ${(extra && extra.matched || []).length ? `<div class="small">On your resume</div><div class="skills">${extra.matched.map(x => `<span class="skill">${esc(x)}</span>`).join("")}</div>` : ""}
     ${(j.missing || []).length ? `<div class="small" style="margin-top:8px">Asked for, not on your resume</div><div class="skills">${j.missing.map(x => `<span class="skill miss">${esc(x)}</span>`).join("")}</div>` : ""}</div>` : "";
+  const a = AIR[j.uid];
+  const SP = {yes: "says it sponsors visas", no: "says it won't sponsor", citizens_only: "needs U.S. citizenship / clearance"};
+  const fact = (label, q) => q ? `<div style="margin-top:8px"><b>${esc(label)}</b><p class="quote">${esc(q)}</p></div>` : "";
+  const aiPanel = a ? `<div class="panel ${a.fit >= 4 ? "good" : a.fit <= 2 ? "bad" : ""}"><h3>Local AI review: fit ${a.fit || "?"}/5${a.resume ? `, use your ${esc(a.resume)} resume` : ""}</h3>
+    <div class="small">${esc(a.why || "")}${a.level ? ` · level: ${esc(a.level)}` : ""}. Fit and reason are the model's opinion.</div>
+    ${fact(a.years ? `Requires ${a.years}+ years` : "", a.years_q)}
+    ${fact(SP[a.spons] ? `Sponsorship: ${SP[a.spons]}` : "", a.spons_q)}
+    ${fact(a.start === "fits" ? "Start date fits June 2027" : a.start === "too_early" ? "Start date looks too early" : "", a.start_q)}
+    ${fact(a.staffing ? "Looks like a staffing agency" : "", a.staffing_q)}
+    ${(a.matched || []).length ? `<div class="small" style="margin-top:8px">Matches your resume</div><div class="skills">${a.matched.map(x => `<span class="skill">${esc(x)}</span>`).join("")}</div>` : ""}
+    ${(a.missing || []).length ? `<div class="small" style="margin-top:8px">Asked for, not on your resumes</div><div class="skills">${a.missing.map(x => `<span class="skill miss">${esc(x)}</span>`).join("")}</div>` : ""}
+    <p class="small" style="margin:10px 0 0">Every fact above is quoted from the posting and was checked word for word.${(a.unverified || []).length ? ` Discarded because the quote wasn't in the posting: ${esc(a.unverified.join(", "))}.` : ""} Reviewed ${esc(ago(a.at))}${a.model ? ` by ${esc(a.model)}` : ""}.</p></div>` : "";
+  const hidPanel = j.hidden && !j.ai_hidden ? `<div class="panel bad"><h3>Hidden by your filters: ${esc(j.hidden_reason || "")}</h3>
+    ${extra && extra.years_evidence && /years/.test(j.hidden_reason || "") ? `<div class="small">From the job description:</div><p class="quote">${esc(extra.years_evidence)}</p>` : ""}
+    <div class="small">If this is wrong, set a status (e.g. Saved) to keep it in your list.</div></div>` : "";
   const flags = [];
   if (j.repost_of) flags.push(`Reposted. First seen ${fmtDate(j.repost_first_seen)} under an earlier posting that closed${j.prev_status ? `; your status then: ${ST_LABEL[j.prev_status]}` : ""}.`);
   if (j.reopened_at) flags.push(`Reopened ${fmtDate(j.reopened_at)} after being taken down.`);
@@ -693,7 +737,7 @@ function drawDetail(j, extra, keepTrack) {
     ${j.ai ? `<div class="panel ${j.ai.v === "reject" ? "bad" : j.ai.fit >= 4 ? "good" : ""}"><h3>AI screening: ${j.ai.v === "reject" ? "not for you" : "keep"}, fit ${j.ai.fit}/5</h3>
       <div class="small">${esc(j.ai.why)}${j.ai.level ? ` · level: ${esc(j.ai.level)}` : ""}. Checked ${esc(j.ai.at)}${j.ai.model ? ` by ${esc(j.ai.model)}` : ""}.
       ${j.ai.v === "reject" ? " If this is wrong, set a status (e.g. Saved) to keep the job in your list." : ""}</div></div>` : ""}
-    ${spPanel}${matchPanel}
+    ${hidPanel}${aiPanel}${spPanel}${matchPanel}
     ${extra && extra.description ? `<div class="desc">${esc(extra.description.replace(/\n{3,}/g, "\n\n"))}</div>`
       : `<p class="small">${extra === null ? "Loading description…" : "No description was captured for this job. Open the application to read it."}</p>`}
   </div>`;
@@ -726,20 +770,21 @@ function setTab(t) {
 }
 $("#tabJobs").addEventListener("click", () => setTab("jobs"));
 $("#tabMine").addEventListener("click", () => setTab("mine"));
-["q","q2","spons","age","region","prio","ng","hideEarly","hideTracked","showClosed","showAi","psize"].forEach(id =>
+["q","q2","spons","aifit","age","region","prio","ng","hideEarly","hideTracked","hideStaffing","hideStale","showClosed","showHidden","showAi","psize"].forEach(id =>
   $("#" + id).addEventListener("input", () => { page = 1; savePrefs(); render(); }));
 document.querySelectorAll("#cats button").forEach(b => b.addEventListener("click", () => {
   b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") !== "true"); page = 1; savePrefs(); render();
 }));
 function savePrefs() {
-  LS.set("prefs", {v: PREFS_VERSION, spons: $("#spons").value, age: $("#age").value, region: $("#region").value, psize: $("#psize").value,
+  LS.set("prefs", {v: PREFS_VERSION, spons: $("#spons").value, aifit: $("#aifit").value, age: $("#age").value, region: $("#region").value, psize: $("#psize").value,
     prio: $("#prio").checked, ng: $("#ng").checked, hideEarly: $("#hideEarly").checked, hideTracked: $("#hideTracked").checked,
+    hideStaffing: $("#hideStaffing").checked, hideStale: $("#hideStale").checked, showHidden: $("#showHidden").checked,
     showClosed: $("#showClosed").checked, showAi: $("#showAi").checked, tab: TAB, sort: sortState, stFilter: [...stFilter],
     cats: [...document.querySelectorAll("#cats button[aria-pressed=true]")].map(b => b.dataset.v)});
 }
 function restorePrefs() {
-  for (const id of ["spons","age","region","psize"]) if (prefs[id] != null) $("#" + id).value = prefs[id];
-  for (const id of ["prio","ng","hideEarly","hideTracked","showClosed","showAi"]) if (id in prefs) $("#" + id).checked = prefs[id];
+  for (const id of ["spons","aifit","age","region","psize"]) if (prefs[id] != null) $("#" + id).value = prefs[id];
+  for (const id of ["prio","ng","hideEarly","hideTracked","hideStaffing","hideStale","showClosed","showHidden","showAi"]) if (id in prefs) $("#" + id).checked = prefs[id];
   if (prefs.cats) document.querySelectorAll("#cats button").forEach(b => b.setAttribute("aria-pressed", prefs.cats.includes(b.dataset.v)));
 }
 document.addEventListener("keydown", e => {
@@ -778,11 +823,15 @@ $("#refresh").addEventListener("click", () => loadData(true));
 async function loadData(isRefresh) {
   $("#refresh").disabled = true;
   try {
-    const [jobsText] = await Promise.all([
+    const [jobsText, aiText] = await Promise.all([
       gh(`/contents/data/dashboard/jobs.json?ref=${encodeURIComponent(BRANCH)}`, {raw: true}),
+      gh(`/contents/data/ai_review.json?ref=${encodeURIComponent(BRANCH)}`, {raw: true}).catch(() => null),
       isRefresh && !T.dirty && !T.saving ? fetchTracking().then(r => { T.sha = r.sha; T.data = r.data; }) : null
     ]);
     META = JSON.parse(jobsText); JOBS = META.jobs || []; BYUID = Object.fromEntries(JOBS.map(j => [j.uid, j]));
+    try { const r = aiText ? JSON.parse(aiText) : null; AIR = (r && r.reviews) || {}; META.ai_model = r && r.model; META.ai_at = r && r.updated_at; } catch { AIR = {}; }
+    $("#aifit").hidden = !Object.keys(AIR).length;
+    $("#staleDays").textContent = (META.stale_days || 180) % 30 === 0 ? `${(META.stale_days || 180) / 30} months` : `${META.stale_days} days`;
     $("#showAi").closest("label").hidden = !JOBS.some(j => j.ai);
     if (!Object.keys(REGIONS).length) for (const [name, words] of Object.entries(META.regions || {})) {
       REGIONS[name] = new RegExp("\\b(" + words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") + ")\\b", "i");

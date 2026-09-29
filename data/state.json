@@ -1,10 +1,11 @@
 {
- "analysis_version": 3,
+ "analysis_version": 4,
  "boards_seen": [
   "aggregator:hn",
   "aggregator:remoteok",
   "aggregator:themuse",
   "amazon:amazon",
+  "apple:apple",
   "ashby:1password",
   "ashby:1x",
   "ashby:8vc",

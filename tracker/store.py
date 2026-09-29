@@ -12,6 +12,7 @@ import json
 from collections import defaultdict
 from pathlib import Path
 
+from .filters import title_years
 from .ids import canonical_url
 
 
@@ -28,7 +29,7 @@ class Store:
 
     def _index(self):
         self.alias = {}
-        self.by_fp = {}
+        self.by_fp = defaultdict(list)
         self.by_url = {}
         self.by_board = defaultdict(list)
         for uid, r in self.jobs.items():
@@ -42,11 +43,8 @@ class Store:
         self.by_url[canonical_url(r["url"])] = uid
         for u in r.get("alt_urls", []):
             self.by_url.setdefault(canonical_url(u), uid)
-        prev = self.by_fp.get(r["fp"])
-        # prefer the open / most recent record for a fingerprint
-        if prev is None or (self.jobs[prev]["status"] != "open" and r["status"] == "open") \
-                or (self.jobs[prev]["status"] == r["status"] and r["first_seen"] > self.jobs[prev]["first_seen"]):
-            self.by_fp[r["fp"]] = uid
+        if uid not in self.by_fp[r["fp"]]:
+            self.by_fp[r["fp"]].append(uid)
         self.by_board[r["board"]].append(r)
 
     def is_empty(self):
@@ -63,9 +61,15 @@ class Store:
                 return self.jobs[real]
         return None
 
-    def find_fp(self, fp):
-        uid = self.by_fp.get(fp)
-        return self.jobs[uid] if uid else None
+    def find_fp(self, fp, title=None):
+        """Record with the same company/title/location. Titles naming different cohort years ("New Grad 2026"
+        vs "New Grad 2027") are different jobs; a title without a year matches either. Open and newest first."""
+        ys = title_years(title)
+        cands = [self.jobs[u] for u in self.by_fp.get(fp, [])]
+        cands = [c for c in cands if not ys or not title_years(c["title"]) or title_years(c["title"]) == ys]
+        if not cands:
+            return None
+        return max(cands, key=lambda c: (c["status"] == "open", c["first_seen"]))
 
     # ── mutations ──
     def add(self, rec):

@@ -562,6 +562,7 @@ function chipsFor(j) {
   if (j.ai_hidden) c.push(`<span class="chip bad">AI rejected: ${esc(j.ai.why)}</span>`);
   else if (j.hidden) c.push(`<span class="chip bad">Hidden: ${esc(j.hidden_reason || "filtered")}</span>`);
   if (j.staffing) c.push(`<span class="chip warn">Staffing agency</span>`);
+  if (j.spons_warn) c.push(`<span class="chip warn" title="Not a hard no. Check the posting.">Check: ${esc(j.spons_warn)}</span>`);
   if (j.priority) c.push(`<span class="chip star">Top company</span>`);
   if ((j.tags || []).includes("newgrad")) c.push(`<span class="chip star">New grad</span>`);
   if (j.start === "fits") c.push(`<span class="chip good">2027 start</span>`);
@@ -689,6 +690,7 @@ function drawDetail(j, extra, keepTrack) {
   const spPanel = j.categories ? `<div class="panel ${s.cls}"><h3>${esc(s.label)}</h3>
     ${ev ? `<div class="small">From the job description:</div><p class="quote">${esc(ev)}</p>`
          : `<div class="small">The job description doesn't mention sponsorship${j.has_desc ? "" : " (no description from this source; check the posting)"}.</div>`}
+    ${j.spons_warn ? `<p class="small" style="margin:8px 0 0"><b>Check:</b> ${esc(j.spons_warn)}. This is not automatically a no for F-1 candidates.${extra && extra.sponsorship_warning_evidence ? `</p><p class="quote">${esc(extra.sponsorship_warning_evidence)}` : ""}</p>` : ""}
     ${j.clearance_likely ? `<p class="small" style="margin:8px 0 0">Most of this company's postings that mention it require U.S. citizenship or a security clearance, so this one probably does too.</p>` : ""}
     ${j.staffing ? `<p class="small" style="margin:8px 0 0">Tagged as a staffing agency / contract placement firm.</p>` : ""}
     ${h ? `<p class="small" style="margin:10px 0 0">H-1B filings for tech roles (US Dept. of Labor): <b>${h.tech.toLocaleString()}</b>${h.entry ? `, ${h.entry.toLocaleString()} at entry wage levels` : ""}${h.name ? ` as “${esc(h.name)}”` : ""}.</p>` : ""}
@@ -707,7 +709,7 @@ function drawDetail(j, extra, keepTrack) {
     ${fact(a.staffing ? "Looks like a staffing agency" : "", a.staffing_q)}
     ${(a.matched || []).length ? `<div class="small" style="margin-top:8px">Matches your resume</div><div class="skills">${a.matched.map(x => `<span class="skill">${esc(x)}</span>`).join("")}</div>` : ""}
     ${(a.missing || []).length ? `<div class="small" style="margin-top:8px">Asked for, not on your resumes</div><div class="skills">${a.missing.map(x => `<span class="skill miss">${esc(x)}</span>`).join("")}</div>` : ""}
-    <p class="small" style="margin:10px 0 0">Every fact above is quoted from the posting and was checked word for word.${(a.unverified || []).length ? ` Discarded because the quote wasn't in the posting: ${esc(a.unverified.join(", "))}.` : ""} Reviewed ${esc(ago(a.at))}${a.model ? ` by ${esc(a.model)}` : ""}.</p></div>` : "";
+    <p class="small" style="margin:10px 0 0">Each fact above comes with a quote that was found in the posting (small punctuation differences allowed). The quote proves the sentence exists; read it to judge whether it means what the AI says.${(a.unverified || []).length ? ` Discarded because the quote wasn't in the posting: ${esc(a.unverified.join(", "))}.` : ""} Reviewed ${esc(ago(a.at))}${a.model ? ` by ${esc(a.model)}` : ""}.</p></div>` : "";
   const hidPanel = j.hidden && !j.ai_hidden ? `<div class="panel bad"><h3>Hidden by your filters: ${esc(j.hidden_reason || "")}</h3>
     ${extra && extra.years_evidence && /years/.test(j.hidden_reason || "") ? `<div class="small">From the job description:</div><p class="quote">${esc(extra.years_evidence)}</p>` : ""}
     <div class="small">If this is wrong, set a status (e.g. Saved) to keep it in your list.</div></div>` : "";
@@ -728,7 +730,7 @@ function drawDetail(j, extra, keepTrack) {
       <dt>Posted</dt><dd>${j.posted_at ? esc(fmtDate(j.posted_at)) : "Unknown"}${j.first_seen ? ` (found ${esc(ago(j.first_seen))})` : ""}</dd>
       <dt>Start date</dt><dd>${j.start === "fits" ? "Fits a June 2027 start" : j.start === "too_early" ? "Looks too early for a June 2027 start" : "Not stated. Ask the recruiter about a June 2027 start."}${extra && extra.start_evidence ? `: “${esc(extra.start_evidence)}”` : ""}</dd>
       ${j.salary ? `<dt>Pay</dt><dd>${esc(j.salary)}</dd>` : ""}
-      ${j.min_years ? `<dt>Experience</dt><dd>${j.min_years}+ years${extra && extra.years_evidence ? `: “${esc(extra.years_evidence)}”` : ""}</dd>` : ""}
+      ${j.min_years ? `<dt>Experience</dt><dd>${j.min_years}+ years required${j.years_strict ? " (professional / non-internship)" : ""}${extra && (extra.years_quotes || []).length ? extra.years_quotes.map(q => `<br>“${esc(q)}”`).join("") : extra && extra.years_evidence ? `: “${esc(extra.years_evidence)}”` : ""}${extra && extra.preferred_years ? `<br><span class="small">Preferred: ${extra.preferred_years}+ years (doesn't count against you)</span>` : ""}</dd>` : ""}
       ${j.phd ? `<dt>Degree</dt><dd>PhD appears to be required</dd>` : ""}
       ${extra && extra.employment ? `<dt>Type</dt><dd>${esc(extra.employment)}</dd>` : ""}
       ${(j.categories || []).length ? `<dt>Role type</dt><dd>${esc(j.categories.join(", "))}</dd>` : ""}

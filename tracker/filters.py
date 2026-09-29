@@ -1,4 +1,5 @@
 """Decide whether a job is relevant, and pull useful flags out of its description."""
+import hashlib
 import html
 import re
 from functools import lru_cache
@@ -184,9 +185,12 @@ def html_to_text(s):
 NO_SPONSOR = [
     r"(unable|not able|cannot|can ?not|can't|won't|will not|does not|do not|doesn't|don't|are not able|is not able)\s+(to\s+)?(currently\s+)?(offer|provide|support|sponsor|consider)[^.]{0,60}(sponsor|visa|h-?1b)",
     r"(unable|not able|cannot|can ?not|will not|won't|does not|do not)\s+(to\s+)?sponsor",
+    r"(will\s+not|won't|does\s+not|do\s+not|is\s+not|are\s+not)\s+(be\s+)?(pursu|provid|offer|support|consider)\w*"
+    r"\s+[^.]{0,30}?(visa|immigration|h-?1b)?\s*sponsorship",
     r"without\s+(the\s+)?(need\s+for\s+|requiring\s+)?(current\s+or\s+future\s+|future\s+)?(employer\s+|visa\s+|immigration\s+)*sponsorship",
     r"sponsorship\s+(is|will)\s+not\s+(be\s+)?(available|provided|offered|possible)",
     r"not\s+(be\s+)?(eligible|available)\s+for\s+(visa\s+|immigration\s+)?sponsorship",
+    r"not\s+(be\s+)?eligible\s+for\s+[\w&.'’ -]{0,40}?(visa|immigration|h-?1b)\s+sponsorship",   # "…for Qualcomm immigration sponsorship"
     r"no\s+(visa\s+|immigration\s+|h-?1b\s+)?sponsorship",
     r"not\s+(currently\s+)?(offer|offering|provide|providing)\s+(visa\s+|immigration\s+)?sponsorship",
     r"(must|should)\s+(be\s+)?(authorized|eligible)\s+to\s+work[^.]{0,80}without[^.]{0,40}sponsor",
@@ -204,8 +208,11 @@ CITIZEN = [
     r"(only|must\s+be)\s+(a\s+)?(u\.?s\.?\s+)?(citizens?|green\s*card\s+holders?)\s+(or|and)\s+(lawful\s+)?permanent",
     r"\bpolygraph\b|\b(ci|full[- ]scope)\s+poly\b",
     r"\b(doe\s+)?[ql][- ]clearance\b|\bdoe\s+[ql]\b",
-    r"\bpublic\s+trust\s+(clearance|position|background)",
-    r"\b(secret|top\s+secret)\s+(security\s+)?clearance",
+    r"verification\s+of\s+(u\.?s\.?\s+)?citizenship",
+    r"citizenship[- ]based\s+(legal\s+)?restrictions?",
+    r"\b(secret|top\s+secret)\s+(/?\s*sci\s+)?(security\s+)?clearance",
+    r"(able|ability|eligible)\s+to\s+obtain\s+(and\s+(hold|maintain)\s+)?(an?\s+)?(active\s+)?(u\.?s\.?\s+)?"
+    r"[\w/ ]{0,25}?(security\s+)?clearance",
 ]
 SPONSORS = [
     r"(visa|h-?1b|immigration)\s+sponsorship\s+(is\s+)?(available|provided|offered)",
@@ -214,6 +221,20 @@ SPONSORS = [
     r"sponsorship\s+(is\s+)?available",
     r"open\s+to\s+sponsor",
 ]
+# Not a hard "no": shown as a warning to check, never used to hide a job.
+#   Public Trust is a suitability/background investigation, not a security clearance (OPM), and export-control
+#   wording with "may" often means the employer can apply for an export license.
+WARNINGS = [
+    ("Public Trust background check", r"\bpublic\s+trust\b"),
+    ("export-control status may be required",
+     r"export\s+control\w*[^.]{0,200}?\b(may|might|could)\s+(need|require|be\s+required)|"
+     r"\b(may|might)\s+(need|be\s+required)\s+to\s+meet\s+certain\s+legal\s+status|"
+     r"\b(may|might)\s+require\s+(an\s+)?export\s+licen[cs]e"),
+    ("security screening required", r"security\s+screening\s+requirements?"),
+    ("some visa types may not be accepted",
+     r"may\s+not\s+be\s+able\s+to\s+(employ|hire|consider)[^.]{0,120}(work\s+authorization|visa)"),
+]
+_WARN = [(label, re.compile(p, re.I)) for label, p in WARNINGS]
 _NO = [re.compile(p, re.I) for p in NO_SPONSOR]
 _CIT = [re.compile(p, re.I) for p in CITIZEN]
 _YES = [re.compile(p, re.I) for p in SPONSORS]
@@ -247,11 +268,180 @@ def _evidence(text, match):
     return sent[:300]
 
 
+# ── Sections: required vs preferred qualifications ──
+_HEAD_MAX = 90
+_REQ_HEAD = re.compile(
+    r"^\W*(key\s+(qualifications?|requirements?|skills)\b[^:]{0,30}|"
+    r"(basic|minimum|required|must[- ]have|mandatory)\b[^:]{0,30}(qualifications?|requirements?|skills?|experience)?|"
+    r"(requirements?|qualifications?|what you('ll| will)? (need|bring)|who you are|what we('re| are) looking for|"
+    r"you (have|bring|should have)|about you|your background|skills (and|&) experience))\W*:?\W*$", re.I)
+_PREF_HEAD = re.compile(
+    r"^\W*(preferred|desired|bonus|nice[- ]to[- ]haves?|additional|ideal(ly)?|pluses?|extra credit|even better|"
+    r"good to have|it(’|')?s a plus|it would be (great|nice)|we(’|')?d love)\b[^.]{0,50}$", re.I)
+_OTHER_HEAD = re.compile(
+    r"^\W*((key|main|primary|core|your|job|role)\s+)?(responsibilit(?:y|ies)|duties|what you(’|')?ll do|what you will do|the role|your role|about (the|us|our)|who we are|"
+    r"benefits|perks|compensation|pay|salary|why join|equal opportunity|eeo|overview|the team|our team|"
+    r"job description|summary|location|how to apply|life at)\b[^.]{0,50}$", re.I)
+_INLINE_PREF = re.compile(r"\b(preferred|nice[- ]to[- ]have|is a plus|are a plus|a plus|bonus( points)?|ideally|"
+                          r"desired|advantageous|preference (will be )?given)\b", re.I)
+
+
+def desc_hash(text):
+    """Fingerprint of a description (whitespace / case-insensitive); None when there's no real description."""
+    t = " ".join((text or "").strip()[:20000].split()).lower()
+    return hashlib.sha1(t.encode()).hexdigest()[:12] if len(t) > 200 else None
+
+
+def sections(text):
+    """[(kind, line)] with kind in required | preferred | other | none, from the posting's own headers."""
+    out, kind = [], "none"
+    for raw in re.split(r"\n+|\s*•\s*", text or ""):
+        line = raw.strip()
+        if not line:
+            continue
+        if len(line) <= _HEAD_MAX:
+            if _PREF_HEAD.match(line):
+                kind = "preferred"
+                continue
+            if _REQ_HEAD.match(line):
+                kind = "required"
+                continue
+            if _OTHER_HEAD.match(line) and (line.endswith(":") or len(line) < 40):
+                kind = "other"
+                continue
+        out.append((kind, line))
+    return out
+
+
+# "3+ years", "3-5 years", "2 - 5 or more years", "1.5+ yrs", "eight (8) years"
+_YRS = re.compile(r"(?<![\d.])(\d{1,2})\)?(?:\.\d+)?\s*(?:\+|or more|plus)?\s*"
+                  r"(?:(?:-|–|—|to)\s*\d{1,2}(?:\.\d+)?\s*(?:\+|or more|plus)?)?\s*(?:years?|yrs?)\b", re.I)
+_MS_WORD = re.compile(r"\b(master'?s?|m\.?s\.?(?=\W)|m\.?eng|advanced degree|graduate (degree|research|studies|background|work|coursework))\b", re.I)
+_PHD_WORD = re.compile(r"\bph\.?\s?d\b|\bdoctora", re.I)
+_OR = re.compile(r"\bor\b", re.I)
+# a path for people WITHOUT a degree never applies to an MS student ("OR 3+ years in lieu of a degree")
+_LIEU = re.compile(r"in\s+lieu\s+of|in\s+place\s+of|to\s+satisfy\s+the\s+degree|substitut\w*|instead\s+of\s+(a\s+)?degree|without\s+a\s+degree|"
+                   r"equivalent\s+(work\s+|practical\s+|combination\s+of\s+)?experience", re.I)
+_DEGREE_WORD = re.compile(r"\b(degree|bachelor'?s?|b\.?s\.?(?=\W)|b\.?a\.?(?=\W)|master'?s?|ph\.?\s?d|diploma)\b", re.I)
+_NUMWORD = re.compile(r"\b(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|"
+                      r"fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\s*\((\d{1,2})\)", re.I)
+_OR_LINE = re.compile(r"^\W*or\W*$", re.I)
+_STRICT = re.compile(r"non[- ]?internship|professional|industry|full[- ]time|post[- ]?(graduat|grad|degree)|"
+                     r"work experience|commercial", re.I)
+_INTERN_OK = re.compile(r"internships?\s+(count|included|acceptable|qualify|are considered)|including internships?|"
+                        r"(internship|co-?op|academic|research)\s+experience\s+(counts|is acceptable)", re.I)
+_BOAST = re.compile(r"\b(we|we've|we’ve|our|us|founded|company has|team has)\b", re.I)
+_YOU = re.compile(r"\b(you|your|candidate|applicant|required|requires|minimum|must|at least|need)\b", re.I)
+
+
+def _sentence_years(sent):
+    """Years one sentence requires of someone with an MS; None if it states no experience requirement.
+
+    Alternatives split by "or" take the easiest path open to an MS: the Master's clause if there is one
+    ("BS and 4+ years, or MS and 2+ years" → 2; "3+ years or a Master's" → 0), otherwise the smallest
+    ("8 years, or 11 years without a degree" → 8). A PhD-only clause doesn't apply to an MS.
+    Several numbers in one clause are required together → the largest."""
+    mentions = []
+    for m in _YRS.finditer(sent):
+        if _AGE.match(sent, m.end()):
+            continue                                   # "must be 18 years of age"
+        ctx = sent[max(0, m.start() - 30): m.end() + 80].lower()
+        if "experience" not in ctx:
+            continue
+        n = int(m.group(1))
+        if 0 < n <= 20:
+            mentions.append((m.start(), n))
+    has_ms = _MS_WORD.search(sent)
+    if not mentions and not has_ms:
+        return None
+    if _BOAST.search(sent) and not _YOU.search(sent):
+        return None                                    # "we have 25 years of experience in…"
+    cuts = [0] + [m.start() for m in _OR.finditer(sent)] + [len(sent)]
+    clauses = []
+    for a, b in zip(cuts, cuts[1:]):
+        text = sent[a:b]
+        if _LIEU.search(text):
+            continue                                   # no-degree path
+        nums = [n for pos, n in mentions if a <= pos < b]
+        clauses.append((nums, bool(_MS_WORD.search(text)), bool(_PHD_WORD.search(text)) and not _MS_WORD.search(text),
+                        bool(_DEGREE_WORD.search(text)), re.sub(r"^\W*or\b\W*", "", text.strip(), flags=re.I), a))
+    if not any(c[0] for c in clauses):
+        return None
+    if len(clauses) > 1:
+        ms = [max(c[0]) if c[0] else 0 for c in clauses if c[1]]
+        if ms:
+            return min(ms)
+        # "Engineering degree or 4+ years" / "4+ years or a bachelor's degree" → the degree path needs no years
+        for i, c in enumerate(clauses):
+            if c[0] and not c[3]:
+                before = any(d[3] and not d[0] for d in clauses[:i]) and c[4][:1].isdigit()
+                after = any(d[3] and not d[0] for d in clauses[i + 1:])
+                if before or after:
+                    return 0
+    vals = [max(c[0]) for c in clauses if c[0] and not c[2]]
+    return min(vals) if vals else None
+
+
+def _line_years(line):
+    """Sentences of one line are required together → the largest sentence requirement."""
+    line = _NUMWORD.sub(r"\1", line)                  # "three (3) to five (5) years" → "3 to 5 years"
+    vals = [v for v in (_sentence_years(x) for x in re.split(r"(?<=[.;])\s+", line)
+                        if not (_LIEU.search(x) and not _DEGREE_WORD.search(_LIEU.split(x)[0])))
+            if v is not None]
+    return max(vals) if vals else None
+
+
+def experience(text):
+    """Required years = the highest requirement among mandatory lines (every basic qualification applies at
+    once). Lines joined by a standalone "OR" line are alternatives (Qualcomm-style "Bachelor's + 4 years / OR /
+    Master's + 3 years / OR / PhD + 2 years") → the Master's line, else the smallest. Years in Preferred /
+    nice-to-have lines are reported separately and never hide a job."""
+    groups, pref, link = [], None, False
+    for kind, line in sections(text):
+        if kind == "other":
+            continue
+        if _OR_LINE.match(line):
+            link = True
+            continue
+        n = _line_years(line)
+        if n is None:
+            link = link and not line.strip()
+            continue
+        if kind == "preferred" or _INLINE_PREF.search(line):
+            pref = max(pref or 0, n) or None
+            link = False
+            continue
+        joined = link or bool(re.match(r"^\W*or\b", line, re.I))
+        entry = (n, line, bool(_MS_WORD.search(line)), bool(_PHD_WORD.search(line)) and not _MS_WORD.search(line))
+        if joined and groups:
+            groups[-1].append(entry)
+        else:
+            groups.append([entry])
+        link = False
+    req, ev, strict, quotes = None, None, False, []
+    for g in groups:
+        ms = [e for e in g if e[2]]
+        pool = ms if (ms and len(g) > 1) else [e for e in g if not e[3]] or g
+        best = min(pool, key=lambda e: e[0])
+        if best[0] <= 0:
+            continue
+        q = " ".join(best[1].split())[:300]
+        quotes.append(q)
+        s_ = bool(_STRICT.search(best[1])) and not _INTERN_OK.search(best[1])
+        if req is None or best[0] > req or (best[0] == req and s_ and not strict):
+            req, ev, strict = best[0], q, s_
+    return {"min_years": req, "years_evidence": ev, "years_quotes": quotes[:4], "years_strict": strict,
+            "preferred_years": pref}
+
+
 def analyze_description(text):
     """Pull decision-relevant facts out of a job description.
 
     Returns {"sponsorship": no_sponsor|citizen|sponsors|unknown, "sponsorship_evidence": str|None,
-             "min_years": int|None, "years_evidence": str|None, "phd": bool, "salary": str|None}
+             "sponsorship_warning": str|None, "sponsorship_warning_evidence": str|None,
+             "min_years": int|None (required years, see experience()), "years_evidence": str|None,
+             "years_quotes": [str], "years_strict": bool, "preferred_years": int|None,
+             "phd": bool, "salary": str|None}
     The evidence strings are the exact sentences that triggered each flag, so you can verify them.
     """
     t = re.sub(r"[ \t\u00a0]+", " ", text or "")
@@ -265,29 +455,20 @@ def analyze_description(text):
         if spons != "unknown":
             break
 
-    years, yev = [], None
-    for m in _YEARS.finditer(t):
-        if _AGE.match(t, m.end()):
-            continue                      # "must be 18 years of age or older" is not an experience requirement
-        window = t[m.start(): m.end() + 80]
-        before = t[max(0, m.start() - 30): m.start()]
-        wide_before = t[max(0, m.start() - 90): m.start()]
-        if _DEGREE_ALT.search(window) or _DEGREE_FIRST.search(wide_before):
-            continue                      # "3+ years or a Master's" / "PhD, or MS with 2 years" → degree path open
-        if "experience" in window.lower() or "experience" in before.lower():
-            try:
-                n = int(m.group(1))
-            except ValueError:
-                continue
-            if 0 < n <= 20:
-                if not years or n < min(years):
-                    yev = _evidence(t, m)
-                years.append(n)
+    warning = warning_ev = None
+    if spons not in ("citizen", "no_sponsor"):
+        for label, p in _WARN:
+            m = p.search(t)
+            if m:
+                warning, warning_ev = label, _evidence(t, m)
+                break
     sal = _SALARY.search(t)
-    return {"sponsorship": spons, "sponsorship_evidence": evidence,
-            "min_years": min(years) if years else None, "years_evidence": yev,
-            "phd": bool(_PHD_REQ.search(t)),
-            "salary": " ".join(sal.group(0).split()) if sal else None}
+    out = {"sponsorship": spons, "sponsorship_evidence": evidence,
+           "sponsorship_warning": warning, "sponsorship_warning_evidence": warning_ev,
+           "phd": bool(_PHD_REQ.search(t)),
+           "salary": " ".join(sal.group(0).split()) if sal else None}
+    out.update(experience(t))
+    return out
 
 
 # ── Resume match ────────────────────────────────────────────────────────────
@@ -328,17 +509,24 @@ class ResumeMatcher:
         return best
 
 
-def years_verdict(min_years, tags, exp):
+def years_verdict(min_years, tags, exp, strict=False):
     """Return (years to show as a ⏳ flag or None, reason to hide or None).
 
-    A title that says new grad / early career / Engineer I is flagged, never hidden, for a years
-    requirement: those postings often list "2+ years" that internships count toward."""
+    A title that says new grad / early career / Engineer I is flagged, not hidden, for a years requirement
+    (those often list "2+ years" that internships count toward) — unless the requirement is explicitly
+    professional / non-internship experience ("3+ years of non-internship professional experience")."""
     flag = min_years if (min_years or 0) >= exp.get("flag_min_years", 2) else None
     hide = None
     if min_years and min_years >= exp.get("hide_min_years", 3):
-        if not ("newgrad" in (tags or []) and exp.get("never_hide_newgrad_titles", True)):
-            hide = f"asks for {min_years}+ years"
+        if strict or not ("newgrad" in (tags or []) and exp.get("never_hide_newgrad_titles", True)):
+            hide = f"asks for {min_years}+ years" + (" (professional)" if strict else "")
     return flag, hide
+
+
+def title_years(title):
+    """Cohort / start years in a title ("New Grad 2027", "(2026 Start)"): postings for different years are
+    never treated as the same job."""
+    return tuple(sorted(set(re.findall(r"\b(20[2-3]\d)\b", html.unescape(title or "")))))
 
 
 # ── Staffing agencies / contract body shops ─────────────────────────────────

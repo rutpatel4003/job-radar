@@ -246,7 +246,45 @@ def test_ai_screening():
     print("ai screening test passed ✔")
 
 
+def test_edited_posting_and_copies():
+    """An edited posting is re-analysed; a job whose first copy was taken down stays open via its other copy;
+    a job still listed on another source doesn't collect misses."""
+    tmp = Path(tempfile.mkdtemp())
+    (tmp / "data").mkdir()
+    w = World()
+    go = make_run(w, tmp)
+    base = "Build ML systems with PyTorch and Python for our robotics platform. " * 5
+    a1 = gh(30, "Machine Learning Engineer", "Austin, TX", base + "1+ years of experience with Python.")
+    twin = gh(31, "Machine Learning Engineer", "Austin, TX", base + "1+ years of experience with Python.")
+    w.boards["acme"] = [a1, twin]
+    go()
+    db = json.loads((tmp / "data" / "jobs.json").read_text())
+    assert db["gh:30"]["aliases"] == ["gh:31"] and not db["gh:30"].get("hidden") and db["gh:30"]["dh"]
+    # the company edits the posting: now 5+ years → re-analysed and hidden
+    a1b = gh(30, "Machine Learning Engineer", "Austin, TX", base + "Minimum qualifications: 5+ years of experience with Python.")
+    w.boards["acme"] = [a1b, twin]
+    go()
+    db = json.loads((tmp / "data" / "jobs.json").read_text())
+    assert db["gh:30"]["min_years"] == 5 and db["gh:30"]["hidden"] and db["gh:30"].get("desc_changed_at")
+    # the first requisition is taken down, the twin stays → still open, now linking to the twin
+    w.boards["acme"] = [twin]
+    go()
+    go()
+    db = json.loads((tmp / "data" / "jobs.json").read_text())
+    assert db["gh:30"]["status"] == "open" and db["gh:30"]["url"].endswith("/31") and db["gh:30"]["miss"] == 0
+    # gone from its own board but still in a community list → no misses
+    w.boards["acme"] = []
+    w.community = [Job(uid="gh:30", company="Acme Robotics", title="Machine Learning Engineer", url=a1.url,
+                       locations=["Austin, TX"], source="simplifyjobs", board="community:simplifyjobs")]
+    go()
+    go()
+    db = json.loads((tmp / "data" / "jobs.json").read_text())
+    assert db["gh:30"]["status"] == "open" and not db["gh:30"].get("miss"), db["gh:30"]
+    print("edited-posting / copies test passed ✔")
+
+
 if __name__ == "__main__":
     test_pipeline()
+    test_edited_posting_and_copies()
     test_recheck_and_backfill()
     test_ai_screening()

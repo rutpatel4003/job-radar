@@ -35,7 +35,15 @@ def test_sponsorship_wording():
         "This position requires a polygraph.": "citizen",
         "Must be able to obtain a DOE Q clearance.": "citizen",
         "Requires an active Secret clearance.": "citizen",
-        "Public Trust background investigation required.": "citizen",
+        "Public Trust background investigation required.": "unknown",       # a warning, not a clearance
+        "This position is not eligible for Qualcomm immigration sponsorship.": "no_sponsor",
+        "IBM will not be providing visa sponsorship for this position now or in the future.": "no_sponsor",
+        "Eligibility to work is required as the company will not pursue visa sponsorship for these positions.": "no_sponsor",
+        "Ability to obtain and maintain a U.S. Top Secret SCI security clearance": "citizen",
+        "Must be able to obtain and hold a U.S. security clearance.": "citizen",
+        "Eligible to obtain and maintain an active U.S. Secret security clearance.": "citizen",
+        "We will not consider candidates who need sponsorship.": "no_sponsor",
+        "This position requires verification of citizenship due to citizenship-based legal restrictions.": "citizen",
         "We are unable to sponsor visas for this role.": "no_sponsor",
         "Visa sponsorship is available.": "sponsors",
     }
@@ -43,6 +51,108 @@ def test_sponsorship_wording():
            if analyze_description(t)["sponsorship"] != want}
     assert not bad, bad
     assert "obtain / maintain work authorization in the country of employment" in audit.SYSTEM
+
+
+def test_sponsorship_warnings():
+    w = analyze_description("This role requires a Public Trust background investigation.")
+    assert w["sponsorship"] == "unknown" and w["sponsorship_warning"] == "Public Trust background check"
+    w = analyze_description("To comply with U.S. export control laws and regulations, candidates for this role may need "
+                            "to meet certain legal status requirements as provided in those laws.")
+    assert w["sponsorship"] == "unknown" and "export-control" in w["sponsorship_warning"]
+    w = analyze_description("We are unable to sponsor visas. Public Trust clearance may apply.")
+    assert w["sponsorship"] == "no_sponsor" and w["sponsorship_warning"] is None
+    assert "Public Trust position or" in audit.SYSTEM and "background check (a suitability check" in audit.SYSTEM
+
+
+EXPERIENCE = [
+    ("BASIC QUALIFICATIONS\n- 3+ years of non-internship professional software development experience\n"
+     "- 2+ years of design experience\n- 1+ years of experience in a related occupation\n"
+     "PREFERRED QUALIFICATIONS\n- 5+ years of experience with AWS", 3, True),
+    ("Minimum qualifications: 3+ years of experience with Python.\nPreferred qualifications: 1+ years of experience with Go.", 3, False),
+    ("Requirements: 5+ years of experience building backend systems, or a Master's degree and 3 years of experience.", 3, False),
+    ("Bachelor's degree with 2–5+ years of relevant experience, or Master's degree with 1–4+ years of experience", 1, False),
+    ("1.5+ years experience with Python and Flask", 1, False),
+    ("2 - 5 or more years of experience in Object Oriented design is required.", 2, False),
+    ("Candidates must have a Bachelors' Degree and a minimum of eight (8) years of experience, or 11 years of "
+     "experience in lieu of a degree.", 8, False),
+    ("Minimum Qualifications:\nBachelor's degree in Engineering and 4+ years of Software Engineering experience.\nOR\n"
+     "Master's degree in Engineering and 3+ years of Software Engineering experience.\nOR\n"
+     "PhD in Engineering and 2+ years of Software Engineering experience.", 3, False),
+    ("3+ years of experience in software engineering or a relevant field. 2+ years of experience if you have a PhD.", 3, False),
+    ("3+ years of experience or a Master's degree in Computer Science", None, False),
+    ("Must be 18 years of age or older. Experience from previous internships.", None, False),
+    ("We have over 25 years of experience serving customers.", None, False),
+    ("1 year of experience with an advanced degree.", 1, False),
+    ("Nice to have:\n- 4+ years of experience with Kubernetes", None, False),
+    ("Requirements\n- 2+ years of experience with React (a plus)\n- 3+ years of experience with Go", 3, False),
+    ("Bachelor’s degree in computer science and 1+ years of professional experience in software engineering; "
+     "OR 3+ years of professional experience in software engineering in lieu of a degree", 1, False),
+    ("Three (3) to five (5) years of software development experience.", 3, False),
+    ("Engineering Degree or 4+ years controls engineering experience in an automated manufacturing environment", None, False),
+    ("BS or MS degree in Computer Science and minimum of 5+ years of software development experience is required", 5, False),
+    ("A minimum of 3 years of R&D experience, or an equivalent graduate research background, primarily in AI", None, False),
+]
+
+
+def test_responsibility_sections_are_not_requirements():
+    from tracker.filters import experience
+    for head in ("Responsibilities", "Responsibilities:", "Key Responsibilities", "Responsibility", "Duties"):
+        t = f"{head}\n- Mentor others; 10+ years of experience with distributed systems helps the team\n" \
+            "Qualifications\n- 3+ years of experience with Go"
+        assert experience(t)["min_years"] == 3, head
+    assert experience("Key Qualifications\n- 4+ years of experience with C++")["min_years"] == 4
+
+
+def test_experience_parser():
+    from tracker.filters import experience
+    bad = []
+    for text, want, strict in EXPERIENCE:
+        got = experience(text)
+        if got["min_years"] != want or (strict and not got["years_strict"]):
+            bad.append((text[:60], got["min_years"], got["years_strict"], want))
+    assert not bad, bad
+    r = experience(EXPERIENCE[0][0])
+    assert r["preferred_years"] == 5 and len(r["years_quotes"]) == 3
+
+
+def test_professional_years_override_newgrad_title():
+    exp = CFG["experience"]
+    assert years_verdict(3, ["newgrad"], exp, strict=True)[1] == "asks for 3+ years (professional)"
+    assert years_verdict(3, ["newgrad"], exp, strict=False)[1] is None
+
+
+def test_cohort_years_are_not_merged():
+    from tracker.filters import fingerprint
+    tmp = Path(tempfile.mkdtemp()) / "jobs.json"
+    st = Store(tmp)
+    t26, t27 = "Software Engineer Graduate - 2026 Start", "Software Engineer Graduate - 2027 Start"
+    fp = fingerprint("TikTok", t26, ["San Jose, CA"])
+    assert fp == fingerprint("TikTok", t27, ["San Jose, CA"])          # same fingerprint on purpose…
+    st.add({"uid": "a", "url": "https://x/a", "fp": fp, "board": "b", "status": "open", "first_seen": "2026-09-01",
+            "title": t26, "company": "TikTok"})
+    assert st.find_fp(fp, t27) is None                                 # …but a different cohort year
+    assert st.find_fp(fp, t26)["uid"] == "a"
+    assert st.find_fp(fp, "Software Engineer Graduate")["uid"] == "a"  # no year → same job
+
+
+def test_compact_posting_keeps_gates_under_pressure():
+    lines = [f"- Experience with tool {i} in production environments at scale, including monitoring" for i in range(250)]
+    body = ("Intro about the company. " * 60 + "\nMinimum Qualifications:\n- 3+ years of experience with Go\n"
+            + "\n".join(lines) + "\nApplicants must be U.S. citizens.\nPreferred:\n- Rust\n"
+            + "Culture text. " * 200 + "\nWe cannot sponsor visas for this role.")
+    c = audit.compact_posting(body, 8000)
+    assert len(c) <= 8000
+    for must in ("We cannot sponsor visas", "must be U.S. citizens", "3+ years of experience with Go", "Intro about"):
+        assert must in c, must
+    assert c.index("[Work authorization") < c.index("[Required qualifications]")
+
+
+def test_compact_posting_keeps_late_requirements():
+    body = "About the team. " * 400 + "\nMinimum qualifications:\n- 3+ years of experience with Go\n" \
+           "Benefits: lunch\n" + "Culture text. " * 300 + "\nWe are unable to sponsor visas for this role."
+    c = audit.compact_posting(body, 4000)
+    assert len(c) <= 4000 and "3+ years of experience with Go" in c and "unable to sponsor" in c
+    assert audit.compact_posting("short posting", 4000) == "short posting"
 
 
 def test_newgrad_titles_are_flagged_not_hidden():
@@ -239,7 +349,7 @@ def test_audit_end_to_end():
     tmp = Path(tempfile.mkdtemp())
     (tmp / "data" / "dashboard" / "details").mkdir(parents=True)
     desc = "Machine learning engineer, new grad. We sponsor visas: visa sponsorship is available. " * 5
-    jobs = {"gh:1": {"uid": "gh:1", "status": "open", "d": "d1", "company": "Acme", "title": "ML Engineer",
+    jobs = {"gh:1": {"uid": "gh:1", "status": "open", "d": "d1", "has_desc": True, "company": "Acme", "title": "ML Engineer",
                      "url": "https://x/1", "locations": ["SF"], "posted_at": "2026-09-28T00:00:00+00:00"},
             "gh:2": {"uid": "gh:2", "status": "open", "company": "NoDesc", "title": "SWE", "url": "https://x/2"}}
     (tmp / "data" / "jobs.json").write_text(json.dumps(jobs))
@@ -263,6 +373,26 @@ def test_audit_end_to_end():
         assert out["reviews"]["gh:1"]["fit"] == 5 and out["reviews"]["gh:1"]["spons"] == "yes"
         assert "gh:2" not in out["reviews"]
         assert audit.main(["--no-digest"]) == 0                    # already reviewed → nothing to do
+        out = json.loads((tmp / "data" / "ai_review.json").read_text())
+        assert out["reviews"]["gh:1"]["pv"] == audit.PROMPT_VERSION
+        out["reviews"]["gh:1"]["pv"] = 1                           # made with an older prompt → redone
+        (tmp / "data" / "ai_review.json").write_text(json.dumps(out))
+        assert audit.main(["--no-digest"]) == 0
+        assert json.loads((tmp / "data" / "ai_review.json").read_text())["reviews"]["gh:1"]["pv"] == audit.PROMPT_VERSION
+        assert audit.main(["--disagreements"]) == 0
+        # the posting text changed → the review is redone; unchanged → kept
+        jobs["gh:1"]["dh"] = "aaaaaaaaaaaa"
+        (tmp / "data" / "jobs.json").write_text(json.dumps(jobs))
+        stamp = json.loads((tmp / "data" / "ai_review.json").read_text())["reviews"]["gh:1"]["at"]
+        with mock.patch.object(audit, "datetime") as dt:
+            from datetime import datetime as real, timezone as tz
+            dt.now.return_value = real(2031, 1, 1, tzinfo=tz.utc)
+            dt.fromisoformat = real.fromisoformat
+            assert audit.main(["--no-digest"]) == 0
+        rev = json.loads((tmp / "data" / "ai_review.json").read_text())["reviews"]["gh:1"]
+        assert rev["dh"] == "aaaaaaaaaaaa" and rev["at"] != stamp
+        # resumes changed → a different review key → redone
+        assert audit.review_key("m", {"resumes": {"SDE": "a"}}, {}) != audit.review_key("m", {"resumes": {"SDE": "b"}}, {})
 
 
 def test_local_llm_http_and_fallback():

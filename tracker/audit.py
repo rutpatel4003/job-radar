@@ -35,6 +35,7 @@ from .config import ROOT, load_config
 DATA = ROOT / "data"
 OUT = DATA / "ai_review.json"
 VERSION = 1
+PROMPT_VERSION = 2      # bump when SYSTEM changes: reviews made with an older prompt are redone
 
 SYSTEM = """You review job postings for ONE candidate and answer with a single JSON object only.
 
@@ -53,18 +54,25 @@ HOW TO ANSWER
   not software/ML, hardware-only, sales/support).
 - resume: which resume to send, "SDE" or "ML/AI".
 - level: "entry" | "mid" | "senior" | "unclear", judged from the posting.
-- years_required: the minimum years of professional experience the posting REQUIRES (not "preferred"), or null.
-  If a degree can substitute ("3 years or a Master's"), use the smallest requirement that applies to someone with
-  an MS. Ignore ages ("18 years of age").
+- years_required: the years of experience the posting REQUIRES of someone with an MS, or null.
+  All required qualifications apply at once, so take the HIGHEST required number ("3+ years X; 1+ year Y" -> 3).
+  Where alternatives are offered ("BS + 4 years OR MS + 2 years", "3 years or a Master's"), use the MS path.
+  Ignore "preferred" / "nice to have" years, paths for people without a degree ("in lieu of a degree") and ages
+  ("18 years of age").
 - sponsorship: exactly one of these, judged ONLY from explicit wording. The candidate is on an F-1 student visa
   (OPT, later H-1B): not a U.S. citizen, not a green-card holder, so not a "U.S. person".
   "citizens_only" when the posting requires any of:
-     U.S. citizenship; "U.S. citizens or permanent residents / green card holders only"; "U.S. person" status or
-     ITAR / EAR export-control eligibility (these mean citizen or green card); an active or obtainable security
-     clearance of any kind (Secret, Top Secret, TS/SCI, "clearable", "eligible for a clearance", DoD, DOE Q or L,
-     polygraph, CI poly, full-scope poly); or a federal Public Trust position.
+     U.S. citizenship ("verification of citizenship" counts); "U.S. citizens or permanent residents / green card
+     holders only"; "U.S. person" status or ITAR eligibility (these mean citizen or green card); an active or
+     obtainable security clearance of any kind (Secret, Top Secret, TS/SCI, "clearable", "eligible for a clearance",
+     DoD, DOE Q or L, polygraph, CI poly, full-scope poly).
+     NOT citizens_only on their own (-> "not_mentioned", mention it in the reason): a Public Trust position or
+     background check (a suitability check, not a clearance); export-control wording that only says candidates
+     "may need" to meet requirements or that an export license may be required; "security screening" or
+     background checks that don't state citizenship.
   "no" when it explicitly refuses sponsorship, e.g. "unable to sponsor", "will not sponsor", "no visa sponsorship",
      "must be authorized to work without current or future sponsorship", "not eligible for sponsorship",
+     "not eligible for <Company> immigration sponsorship",
      "OPT / CPT / H-1B candidates will not be considered".
   "yes" when it explicitly offers it, e.g. "visa sponsorship available", "we sponsor H-1B", "open to sponsoring".
   "not_mentioned" for everything else. Generic work-authorization lines are NOT a refusal: "must be authorized
@@ -183,6 +191,71 @@ def verify(raw, text, resumes_text):
     return {k: v for k, v in out.items() if v not in (None, [], "", False) or k in ("fit",)}
 
 
+# ── what the model reads: the parts of a posting that decide eligibility ──────
+
+_GATE = re.compile(r"sponsor|visa|h-?1b|citizen|u\.?s\.? person|green card|permanent resident|clearance|polygraph|"
+                   r"public trust|export|itar|\bear\b|authoriz|work permit|immigration|security screening", re.I)
+_EXP = re.compile(r"\byears?\b|\byrs?\b|experience|degree|bachelor|master|ph\.?\s?d|b\.?s\.?\b|m\.?s\.?\b", re.I)
+_START = re.compile(r"graduat|class of|start date|start in|starting|begin|cohort|20[2-3]\d|intern|co-?op|"
+                    r"full[- ]time|part[- ]time|contract|temporary|seasonal", re.I)
+_CTX = re.compile(r"location|remote|hybrid|on-?site|relocat|salary|compensation|pay range|\$\d", re.I)
+# (label, max characters) in priority order: hard gates first, so they are never the part that gets cut
+_BUCKETS = [("Work authorization / citizenship / clearance", 2200), ("Required qualifications", 3500),
+            ("Start date / graduation / employment type", 900), ("Role summary", 1400),
+            ("Preferred qualifications", 1500), ("Location / pay", 600)]
+
+
+def compact_posting(text, limit=8000):
+    """The whole posting if it fits. Otherwise the whole posting is parsed into sections and the model gets,
+    in priority order, every sentence about sponsorship / citizenship / clearance / export control, then the
+    required qualifications and experience, start date and graduation, a role summary, preferred
+    qualifications, and location / pay. Each part has its own budget, so a late "we cannot sponsor visas"
+    or the requirements list can never be squeezed out by earlier text."""
+    if len(text) <= limit:
+        return text
+    from .filters import sections
+    got = {name: [] for name, _ in _BUCKETS}
+    seen = set()
+    summary_chars = 0
+    for kind, line in sections(text):
+        k = " ".join(line.split())[:500]
+        if not k or k in seen:
+            continue
+        seen.add(k)
+        if _GATE.search(k):
+            got[_BUCKETS[0][0]].append(k)
+        elif kind == "required" or (kind != "preferred" and _EXP.search(k) and re.search(r"\d", k)):
+            got[_BUCKETS[1][0]].append(k)
+        elif _START.search(k) and kind != "preferred":
+            got[_BUCKETS[2][0]].append(k)
+        elif kind == "preferred":
+            got[_BUCKETS[4][0]].append(k)
+        elif _CTX.search(k):
+            got[_BUCKETS[5][0]].append(k)
+        elif kind in ("none", "other") and summary_chars < 1400:
+            got[_BUCKETS[3][0]].append(k)
+            summary_chars += len(k)
+    left = limit
+    parts = {}
+    for name, cap in _BUCKETS:                     # fill by priority, each within its own cap
+        out, used = [], 0
+        for k in got[name]:
+            if used + len(k) + 1 > min(cap, left):
+                break
+            out.append(k)
+            used += len(k) + 1
+        parts[name] = out
+        left -= used
+    for name, cap in _BUCKETS[1:]:                 # spare room goes to what's still missing, same priority
+        for k in got[name][len(parts[name]):]:
+            if len(k) + 1 > left:
+                break
+            parts[name].append(k)
+            left -= len(k) + 1
+    order = [_BUCKETS[3][0], _BUCKETS[0][0], _BUCKETS[1][0], _BUCKETS[2][0], _BUCKETS[4][0], _BUCKETS[5][0]]
+    return "\n\n".join(f"[{name}]\n" + "\n".join(parts[name]) for name in order if parts[name])[:limit]
+
+
 # ── talking to the local model ─────────────────────────────────────────────
 
 def load_env_file(path=ROOT / ".env.local"):
@@ -273,7 +346,15 @@ def _ts(iso):
         return datetime(1970, 1, 1, tzinfo=timezone.utc)
 
 
-def candidates(jobs, reviews, lc, redo_all=False):
+def review_key(model, lc, cfg):
+    """Changes whenever the prompt, the model or anything the model compares against (resumes, profile) changes."""
+    import hashlib
+    blob = json.dumps([PROMPT_VERSION, model, lc.get("resumes"), (cfg.get("ai_filter") or {}).get("profile"),
+                       (cfg.get("start_date") or {})], sort_keys=True, default=str)
+    return hashlib.sha1(blob.encode()).hexdigest()[:12]
+
+
+def candidates(jobs, reviews, lc, redo_all=False, key=None):
     again = timedelta(days=float(lc.get("review_again_after_days", 30)))
     now = datetime.now(timezone.utc)
     out, no_desc = [], 0
@@ -286,9 +367,15 @@ def candidates(jobs, reviews, lc, redo_all=False):
             continue
         if r.get("staffing") and lc.get("skip_staffing", True):
             continue
-        prev = reviews.get(uid)
-        if prev and not redo_all and prev.get("title") == r.get("title") and now - _ts(prev.get("at")) < again:
+        if not r.get("has_desc"):
+            no_desc += 1                     # only a stub (title / summary): nothing for the model to read
             continue
+        prev = reviews.get(uid)
+        if prev and not redo_all and prev.get("title") == r.get("title") and prev.get("pv", 1) == PROMPT_VERSION \
+                and (key is None or prev.get("key") == key) \
+                and (not r.get("dh") or not prev.get("dh") or prev.get("dh") == r.get("dh")) \
+                and now - _ts(prev.get("at")) < again:
+            continue                          # same posting text, same prompt / model / resumes → still valid
         out.append(r)
     # visible jobs before hidden ones, top companies first, newest postings first — so a capped run covers
     # what matters and the backlog clears over a few days
@@ -305,7 +392,11 @@ def main(argv=None):
     ap.add_argument("--no-digest", action="store_true")
     ap.add_argument("--base-url")
     ap.add_argument("--model")
+    ap.add_argument("--disagreements", action="store_true",
+                    help="list jobs where the AI's quoted facts contradict the regex filters, then exit")
     args = ap.parse_args(argv)
+    if args.disagreements:
+        return disagreements()
     try:
         sys.stdout.reconfigure(line_buffering=True, encoding="utf-8")
     except Exception:
@@ -325,7 +416,8 @@ def main(argv=None):
 
     jobs = json.loads((DATA / "jobs.json").read_text(encoding="utf-8"))
     data = load_reviews()
-    todo, no_desc = candidates(jobs, data["reviews"], lc, args.all)
+    key = review_key(model, lc, cfg)
+    todo, no_desc = candidates(jobs, data["reviews"], lc, args.all, key)
     limit = 5 if args.dry_run else (args.limit or int(lc.get("max_jobs_per_run", 3000)))
     todo = todo[:limit]
     print(f"[audit] {len(todo)} jobs to review ({no_desc} open jobs have no description yet and are skipped)")
@@ -337,7 +429,7 @@ def main(argv=None):
     system = SYSTEM.format(profile=profile, sde=(resumes.get("SDE") or "").strip(), ml=(resumes.get("ML/AI") or "").strip())
     resumes_text = " ".join(resumes.values()) + " " + " ".join(
         str(s).lstrip("=") for sk in ((cfg.get("profile") or {}).get("resumes") or {}).values() for s in sk)
-    chars = int(lc.get("desc_chars", 6000))
+    chars = int(lc.get("desc_chars", 8000))
     details = DATA / "dashboard" / "details"
 
     def one(r):
@@ -347,15 +439,17 @@ def main(argv=None):
             return r, None, "no description file"
         if len(text) < 200:
             return r, None, "description too short"
-        text = re.sub(r"\n{3,}", "\n\n", text)[:chars]
+        full = re.sub(r"\n{3,}", "\n\n", text)
         user = (f"Company: {r['company']}\nTitle: {r['title']}\nLocation: {'; '.join(r.get('locations') or [])[:200]}\n"
-                f"\nJOB POSTING:\n{text}")
+                f"\nJOB POSTING:\n{compact_posting(full, chars)}")
         try:
             raw = llm.ask(system, user)
         except Exception as e:
             return r, None, f"{type(e).__name__}: {str(e)[:120]}"
-        rev = verify(raw, text, resumes_text)
-        rev.update(at=datetime.now(timezone.utc).replace(microsecond=0).isoformat(), title=r["title"], model=model)
+        rev = verify(raw, full, resumes_text)
+        from .filters import desc_hash
+        rev.update(at=datetime.now(timezone.utc).replace(microsecond=0).isoformat(), title=r["title"], model=model,
+                   pv=PROMPT_VERSION, key=key, dh=r.get("dh") or desc_hash(text))
         return r, rev, None
 
     t0, done, errors, reviewed = time.time(), 0, 0, []
@@ -389,6 +483,30 @@ def main(argv=None):
               f"({unver} had a claim discarded because its quote wasn't in the posting)")
         if not args.no_digest:
             digest(reviewed, jobs, int(lc.get("digest_top", 15)))
+    return 0
+
+
+def disagreements():
+    """AI vs regex: quoted facts the regex missed. Review these and turn confirmed phrases into regex rules."""
+    jobs = json.loads((DATA / "jobs.json").read_text(encoding="utf-8"))
+    reviews = load_reviews()["reviews"]
+    cfg = load_config()
+    hide = (cfg.get("experience") or {}).get("hide_min_years", 3)
+    spons, years = [], []
+    for uid, v in reviews.items():
+        r = jobs.get(uid)
+        if not r or r.get("status") != "open":
+            continue
+        if v.get("spons") in ("no", "citizens_only") and r.get("sponsorship", "unknown") == "unknown":
+            spons.append((r, v))
+        if (v.get("years") or 0) >= hide and (r.get("min_years") or 0) < hide and not r.get("hidden"):
+            years.append((r, v))
+    print(f"── sponsorship: AI found a refusal / citizenship requirement the regex missed ({len(spons)})")
+    for r, v in sorted(spons, key=lambda x: x[0]["company"]):
+        print(f"  {r['company'][:22]:22} | {r['title'][:50]:50} | {v['spons']}: “{v.get('spons_q', '')}”")
+    print(f"\n── experience: AI found {hide}+ required years on jobs the regex left visible ({len(years)})")
+    for r, v in sorted(years, key=lambda x: x[0]["company"]):
+        print(f"  {r['company'][:22]:22} | {r['title'][:50]:50} | {v['years']}y: “{v.get('years_q', '')}”")
     return 0
 
 

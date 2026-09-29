@@ -325,7 +325,8 @@ local_ai:
   api_key_env: VLLM_API_KEY    # read from the environment / .env.local; blank is fine for localhost
   concurrency: 32              # HyperQwen batch mode handles ~64 parallel requests on a 3090
   max_jobs_per_run: 3000       # the first run works through the backlog; later runs only see new jobs
-  desc_chars: 6000             # description text sent per job (≈1,500 tokens)
+  desc_chars: 8000             # max text sent per job; longer postings are compacted to the opening + every
+                               # requirements / sponsorship / start-date / location line (nothing near the end is lost)
   review_again_after_days: 30  # re-review a job if it's still open after this long
   include_hidden: true         # also review jobs the regex hid (to catch wrongly hidden ones)
   digest_top: 15               # Telegram "today's best matches" message after a run (needs TELEGRAM_* in .env.local)

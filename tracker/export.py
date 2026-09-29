@@ -26,7 +26,7 @@ FIELDS = ("uid", "d", "company", "title", "url", "locations", "loc_status", "cat
           "sources", "posted_at", "first_seen", "status", "closed_at", "sponsorship", "community_label",
           "h1b", "min_years", "phd", "salary", "match", "resume", "missing", "repost_of",
           "repost_first_seen", "reopened_at", "alt_urls", "has_desc", "start", "priority", "prev_status", "ai", "ai_hidden", "sponsorship_src", "seeded",
-          "hidden", "hidden_reason", "staffing", "clearance_likely")
+          "hidden", "hidden_reason", "staffing", "clearance_likely", "spons_warn", "years_strict")
 
 
 def detail_id(uid):
@@ -40,6 +40,9 @@ def write_detail(rec, job, info):
         "description": (job.description or "").strip()[:20000],
         "sponsorship_evidence": info.get("sponsorship_evidence"),
         "years_evidence": info.get("years_evidence"),
+        "years_quotes": info.get("years_quotes"),
+        "preferred_years": info.get("preferred_years"),
+        "sponsorship_warning_evidence": info.get("sponsorship_warning_evidence"),
         "start_evidence": info.get("start_evidence"),
         "employment": job.employment,
         "all_locations": job.locations,

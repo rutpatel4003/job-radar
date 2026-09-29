@@ -11,8 +11,8 @@ from datetime import datetime, timedelta, timezone
 
 from .config import ROOT, env, load_companies, load_config
 from .export import export_dashboard, write_detail
-from .filters import (ResumeMatcher, Staffing, TitleFilter, analyze_description, classify_start, fingerprint,
-                      location_status, norm_company, years_verdict)
+from .filters import (ResumeMatcher, Staffing, TitleFilter, analyze_description, classify_start, desc_hash,
+                      fingerprint, location_status, norm_company, title_years, years_verdict)
 from .ai_filter import AIFilter, compact
 from .h1b import H1B
 from .notify import notify
@@ -28,7 +28,7 @@ from .sources.pagewatch import fetch_pages, fetch_texts
 from .store import Store
 
 DATA = ROOT / "data"
-ANALYSIS_VERSION = 3     # bump to re-run description analysis on saved jobs once (see migrate())
+ANALYSIS_VERSION = 4     # bump to re-run description analysis on saved jobs once (see migrate())
 CLEARANCE_TITLE = re.compile(r"ts/sci|clearance|\bsecret\b|polygraph|u\.?s\.? citizen|\bus person", re.I)
 
 
@@ -187,18 +187,24 @@ def main():
     pending_fp = {}
     events = []           # (event, record)
     presence = {}         # board -> set(uids) for complete feeds
+    presence_url = {}     # board -> {uid: url}, to switch a record to a copy that's still listed
+    feed_text = {}        # known uid -> description that came with the feed this run (to spot edited postings)
     stats = {"relevant": 0, "merged": 0}
     alive = set()         # records seen active somewhere in this run
 
     for res in ok:
         if res.complete:
             presence[res.board] = {j.uid for j in res.jobs}
+            presence_url[res.board] = {j.uid: j.url for j in res.jobs}
         seed = first_ever or (res.board not in boards_seen)
         for job in res.jobs:
             rec = store.find(job.uid, job.url)
             if rec:
                 alive.add(rec["uid"])
                 store.note_source(rec, job)
+                if job.uid == rec["uid"] and job.description and len(job.description) > 200:
+                    # only the job's own posting (not a copy from another site) can update its description
+                    feed_text[rec["uid"]] = job.description
                 if job.uid != rec["uid"] and job.uid not in rec.get("aliases", []):
                     store.add_alias(rec, job)
                 if res.complete or rec["board"] == res.board or rec["board"].startswith("community:"):
@@ -225,11 +231,15 @@ def main():
             if loc == "non_us":
                 continue
             fp = fingerprint(job.company, job.title, job.locations)
-            if fp in pending_fp:                       # twin posting in this same run
-                pending[pending_fp[fp]]["twins"].append(job)
+            ys = title_years(job.title)
+            twin = next((u for u in pending_fp.get(fp, [])
+                         if not ys or not title_years(pending[u]["job"].title)
+                         or title_years(pending[u]["job"].title) == ys), None)
+            if twin:                                   # twin posting in this same run
+                pending[twin]["twins"].append(job)
                 stats["merged"] += 1
                 continue
-            match = store.find_fp(fp)
+            match = store.find_fp(fp, job.title)   # "New Grad 2026" never matches "New Grad 2027"
             repost_of = None
             if match:
                 if match["status"] == "open":
@@ -241,7 +251,7 @@ def main():
             stats["relevant"] += 1
             pending[job.uid] = {"job": job, "cats": cats, "tags": tags, "loc": loc, "fp": fp,
                                 "repost_of": repost_of, "seed": seed, "twins": []}
-            pending_fp[fp] = job.uid
+            pending_fp.setdefault(fp, []).append(job.uid)
 
     use_browser = bool(pages) and not args.only and not args.skip_pages
 
@@ -302,6 +312,15 @@ def main():
         migrate(store, matcher, (grad, earliest), cfg, tf, staffing)
         state["analysis_version"] = ANALYSIS_VERSION
         migrated = True
+    changed = 0
+    for uid, text in feed_text.items():
+        rec = store.jobs.get(uid)
+        if rec and rec["status"] == "open" and refresh_if_changed(rec, text, matcher, (grad, earliest), cfg, staffing,
+                                                                  now, write=not args.dry_run):
+            changed += 1
+            store.dirty = True
+    if changed:
+        print(f"[refresh] {changed} known postings changed their description; re-analysed")
     h1b = H1B()
     aliases = cfg.get("h1b_aliases") or {}
     if h1b:
@@ -335,7 +354,7 @@ def main():
         community = job.sponsorship_hint or next((t.sponsorship_hint for t in item["twins"] if t.sponsorship_hint), None)
         if "PhD" in (job.degree_hint or []) and len(job.degree_hint) == 1:
             info["phd"] = True
-        flag_years, hidden_reason = years_verdict(info["min_years"], item["tags"], exp)
+        flag_years, hidden_reason = years_verdict(info["min_years"], item["tags"], exp, info["years_strict"])
         if ncfg.get("include_hidden"):
             hidden_reason = None
         match = matcher.score(job.description)
@@ -348,9 +367,10 @@ def main():
             "sponsorship": info["sponsorship"],
             "community_label": community,
             "h1b": h1b.lookup(job.company, aliases) if h1b else None,
-            "min_years": flag_years,
+            "min_years": flag_years, "years_strict": info["years_strict"] or None,
+            "spons_warn": info["sponsorship_warning"],
             "phd": info["phd"], "salary": info["salary"], "fp": item["fp"], "aliases": [], "alt_urls": [],
-            "has_desc": bool(job.description and len(job.description) > 200),
+            "has_desc": bool(job.description and len(job.description) > 200), "dh": desc_hash(job.description),
             "desc_tried": item.get("browser_tried") or None,
             "start": start,
             "priority": is_prio(job.company),
@@ -444,7 +464,7 @@ def main():
         elif keep and (cats != r.get("categories") or tags != r.get("tags", [])):
             r["categories"], r["tags"] = cats, tags          # title rules changed (e.g. new-grad markers)
             store.dirty = True
-        _, years_reason = years_verdict(r.get("min_years"), r.get("tags"), exp)
+        _, years_reason = years_verdict(r.get("min_years"), r.get("tags"), exp, r.get("years_strict"))
         reason = None if keep and not years_reason else \
             ("no longer matches your title/level filters" if not keep else years_reason)
         regex_hidden = r.get("auto_hidden") or (r.get("hidden_reason") or "").startswith("asks for")
@@ -476,9 +496,13 @@ def main():
     closed = 0
     for board, uids in presence.items():
         for rec in list(store.by_board.get(board, [])):
-            if rec["status"] != "open":
+            if rec["status"] != "open" or rec["uid"] in uids:
                 continue
-            if rec["uid"] in uids or any(a in uids for a in rec.get("aliases", [])):
+            listed = [a for a in rec.get("aliases", []) if a in uids]
+            if listed:                                   # the first copy was taken down, another is still up
+                promote(rec, presence_url[board].get(listed[0]), store)
+                continue
+            if rec["uid"] in alive:                      # still listed on another source this run
                 continue
             store.missed(rec, now)
             closed += rec["status"] == "closed"
@@ -497,37 +521,55 @@ def main():
     rechecked = gone = 0
     if not args.only and not args.pages_only and time.time() < deadline - 60:
         slot = (datetime.now(timezone.utc).hour // 3) % 8
+        # partial-feed jobs are checked for closure; full-list jobs (closure already known) only for edits
         cands = [r for r in store.jobs.values()
-                 if r["status"] == "open" and not r.get("hidden") and r["board"] not in presence
-                 and r["uid"] not in pending and crc32(r["uid"].encode()) % 8 == slot]
+                 if r["status"] == "open" and not r.get("hidden") and r["uid"] not in pending
+                 and r["uid"] not in feed_text and crc32(r["uid"].encode()) % 8 == slot]
+        cands.sort(key=lambda r: r["board"] in presence)
         cands = cands[: int(rt.get("recheck_per_run", 900))]
 
         def check(rec):
             f = detail_from_url(rec["url"])
             if not f:
-                return rec, None
+                return rec, None, None, None
             try:
-                f()
-                return rec, True
+                d = f()
+                return rec, True, (d or {}).get("description") if isinstance(d, dict) else None, None
             except NotFound:
-                return rec, False
+                for u in (rec.get("alt_urls") or [])[:3]:       # another copy of the same job still up?
+                    g = detail_from_url(u)
+                    if not g:
+                        continue
+                    try:
+                        d = g()
+                        return rec, True, (d or {}).get("description") if isinstance(d, dict) else None, u
+                    except Exception:
+                        continue
+                return rec, False, None, None
             except Exception:
-                return rec, None
+                return rec, None, None, None
 
         checked, _ = run_pool([(r["uid"], lambda r=r: check(r)) for r in cands], rt.get("detail_workers", 24),
                               max(10.0, deadline - 90 - time.time()), "re-check")
-        if True:
-            for rec, alive in checked:
-                if alive is None:
-                    continue
-                rechecked += 1
-                if alive and rec.get("miss"):
+        edited = 0
+        for rec, up, text, other_url in checked:
+            if up is None:
+                continue
+            rechecked += 1
+            if up:
+                if other_url:
+                    promote(rec, other_url, store)
+                if rec.get("miss"):
                     rec["miss"] = 0
                     store.dirty = True
-                elif not alive:
-                    store.missed(rec, now)
-                    gone += rec["status"] == "closed"
-        print(f"[recheck] {rechecked} postings re-checked, {gone} found closed")
+                if text and refresh_if_changed(rec, text, matcher, (grad, earliest), cfg, staffing, now,
+                                               write=not args.dry_run):
+                    edited += 1
+                    store.dirty = True
+            elif rec["board"] not in presence and rec["uid"] not in alive:
+                store.missed(rec, now)
+                gone += rec["status"] == "closed"
+        print(f"[recheck] {rechecked} postings re-checked, {gone} found closed, {edited} changed their description")
         closed += gone
 
     # ── 4c. Jobs still missing a description (e.g. the first run's backlog) ──
@@ -656,6 +698,33 @@ def main():
         notify(events[:cap], dash, f"<b>🆕 {len(events)} new role{'s' if len(events) != 1 else ''}{extra}</b>")
 
 
+def refresh_if_changed(rec, text, matcher, dates, cfg, staffing, now, write=True):
+    """Re-analyse a known job when its posting text changed (e.g. the company raised the years required).
+    The first time a hash is seen for a job that already has an analysed description, it's only remembered."""
+    h = desc_hash(text)
+    if not h or rec.get("dh") == h:
+        return False
+    if rec.get("dh") is None and rec.get("has_desc"):
+        rec["dh"] = h
+        return False
+    had = rec.get("dh")
+    reanalyze(rec, text, matcher, dates, cfg, write=write, staffing=staffing)
+    if had:
+        rec["desc_changed_at"] = now
+    return True
+
+
+def promote(rec, url, store):
+    """Make a still-listed copy the job's main link (the original requisition was taken down)."""
+    if not url or url == rec["url"]:
+        return
+    alts = [u for u in rec.get("alt_urls", []) if u != url]
+    rec["alt_urls"] = [rec["url"]] + alts
+    rec["url"] = url
+    rec["miss"] = 0
+    store.dirty = True
+
+
 def reanalyze(rec, text, matcher, dates, cfg, write=True, staffing=None, prev=None):
     """Re-run description analysis for an existing record once its description becomes available
     (or after the analysis rules changed). Hides / un-hides for years; never touches AI or manual hides."""
@@ -672,13 +741,16 @@ def reanalyze(rec, text, matcher, dates, cfg, write=True, staffing=None, prev=No
         rec.pop("sponsorship_src", None)
     elif rec.get("sponsorship_src") != "ai":
         rec["sponsorship"] = "unknown"           # the description is the authority, not a community label
-    flag, hide = years_verdict(info["min_years"], rec.get("tags"), exp)
+    flag, hide = years_verdict(info["min_years"], rec.get("tags"), exp, info["years_strict"])
     rec["min_years"] = flag
+    rec["years_strict"] = info["years_strict"] or None
+    rec["spons_warn"] = info["sponsorship_warning"]
     rec["phd"] = info["phd"]
     rec["salary"] = info["salary"] or rec.get("salary")
     if start != "unknown" or rec.get("start") == "unknown":
         rec["start"] = start
     rec["has_desc"] = len(text) > 200
+    rec["dh"] = desc_hash(text)
     m = matcher.score(text)
     for k in ("match", "resume", "missing", "matched"):
         rec.pop(k, None)
@@ -729,8 +801,10 @@ def migrate(store, matcher, dates, cfg, tf, staffing):
             redone += 1
         else:
             # sponsorship copied from a community label on a later sighting (old bug) → back to unknown
-            if r.get("sponsorship", "unknown") != "unknown" and r.get("sponsorship_src") != "ai" \
-                    and not (prev or {}).get("sponsorship_evidence") and not CLEARANCE_TITLE.search(r["title"]):
+            #   (only when a detail file exists without evidence; hidden jobs whose file was deleted keep their label
+            #    until their description is fetched again and re-analysed)
+            if r.get("sponsorship", "unknown") != "unknown" and r.get("sponsorship_src") != "ai" and prev is not None \
+                    and not prev.get("sponsorship_evidence") and not CLEARANCE_TITLE.search(r["title"]):
                 r["community_label"] = r.get("community_label") or r["sponsorship"]
                 r["sponsorship"] = "unknown"
             if (r.get("hidden_reason") or "").startswith("asks for"):

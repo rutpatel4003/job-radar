@@ -76,6 +76,11 @@
 "r": null,
 "t": "2026-09-27"
 },
+"act": {
+"n": "ACT",
+"r": null,
+"t": "2026-10-14"
+},
 "actionet": {
 "n": "ActioNet",
 "r": null,
@@ -95,6 +100,11 @@
 "n": "Adtheorant",
 "r": null,
 "t": "2026-09-27"
+},
+"advantagedesigngroup": {
+"n": "Advantage Design Group",
+"r": null,
+"t": "2026-10-14"
 },
 "aeg": {
 "n": "AEG",
@@ -340,6 +350,11 @@
 "r": null,
 "t": "2026-10-11"
 },
+"ametek": {
+"n": "AMETEK",
+"r": null,
+"t": "2026-10-14"
+},
 "ampere": {
 "n": "Ampere",
 "r": null,
@@ -555,6 +570,11 @@
 "r": null,
 "t": "2026-09-27"
 },
+"asml": {
+"n": "ASML",
+"r": null,
+"t": "2026-10-14"
+},
 "aspen": {
 "n": "Aspen Technology",
 "r": null,
@@ -648,6 +668,11 @@
 "r": null,
 "t": "2026-10-07"
 },
+"avalon": {
+"n": "Avalon",
+"r": null,
+"t": "2026-10-14"
+},
 "avathon": {
 "n": "Avathon",
 "r": {
@@ -706,10 +731,20 @@
 },
 "t": "2026-10-04"
 },
+"axtria": {
+"n": "Axtria",
+"r": null,
+"t": "2026-10-14"
+},
 "axway": {
 "n": "Axway",
 "r": null,
 "t": "2026-09-27"
+},
+"b4corp": {
+"n": "B4Corp",
+"r": null,
+"t": "2026-10-14"
 },
 "baesystems": {
 "n": "BAE Systems, Inc.",
@@ -801,6 +836,11 @@
 "token": "benchling"
 },
 "t": "2026-09-27"
+},
+"bendingspoons": {
+"n": "Bending Spoons",
+"r": null,
+"t": "2026-10-14"
 },
 "benjaminmoore": {
 "n": "Benjamin Moore",
@@ -1019,6 +1059,11 @@
 "r": null,
 "t": "2026-09-27"
 },
+"buildersfirstsource": {
+"n": "Builders FirstSource",
+"r": null,
+"t": "2026-10-14"
+},
 "buildingservice32bjbenefitfunds": {
 "n": "Building Service 32BJ Benefit Funds",
 "r": null,
@@ -1086,6 +1131,11 @@
 "token": "calicolabs"
 },
 "t": "2026-09-27"
+},
+"californiacorrectionalhealthcareservices": {
+"n": "California Correctional Health Care Services",
+"r": null,
+"t": "2026-10-14"
 },
 "californiastateuniversitysanmarcos": {
 "n": "California State University San Marcos",
@@ -1448,6 +1498,11 @@
 "r": null,
 "t": "2026-09-27"
 },
+"conceptsolutions": {
+"n": "Concept Solutions, LLC",
+"r": null,
+"t": "2026-10-14"
+},
 "concord": {
 "n": "Concord",
 "r": null,
@@ -1804,6 +1859,11 @@
 },
 "t": "2026-09-27"
 },
+"dimelinetrading": {
+"n": "Dime Line Trading",
+"r": null,
+"t": "2026-10-14"
+},
 "directagents": {
 "n": "Direct Agents",
 "r": null,
@@ -1872,6 +1932,11 @@
 "n": "D.R. Horton",
 "r": null,
 "t": "2026-09-27"
+},
+"drivetime": {
+"n": "DriveTime",
+"r": null,
+"t": "2026-10-14"
 },
 "dropbox": {
 "n": "Dropbox",
@@ -1944,6 +2009,11 @@
 "r": null,
 "t": "2026-09-27"
 },
+"ecsgroupofcompanies": {
+"n": "ECS Group of Companies",
+"r": null,
+"t": "2026-10-14"
+},
 "edgewaterit": {
 "n": "Edgewater IT",
 "r": null,
@@ -1972,6 +2042,11 @@
 "r": null,
 "t": "2026-09-27"
 },
+"elementalmachines": {
+"n": "Elemental Machines",
+"r": null,
+"t": "2026-10-14"
+},
 "elevancehealth": {
 "n": "Elevance Health",
 "r": null,
@@ -1989,6 +2064,11 @@
 "n": "Elire",
 "r": null,
 "t": "2026-09-27"
+},
+"emcinsurancecompanies": {
+"n": "EMC Insurance Companies",
+"r": null,
+"t": "2026-10-14"
 },
 "emergecareer": {
 "n": "Emerge Career",
@@ -2136,6 +2216,11 @@
 },
 "t": "2026-09-27"
 },
+"expatiatecommunications": {
+"n": "Expatiate Communications",
+"r": null,
+"t": "2026-10-14"
+},
 "expression": {
 "n": "Expression",
 "r": null,
@@ -2207,6 +2292,11 @@
 "n": "fgf brands",
 "r": null,
 "t": "2026-09-30"
+},
+"fidelitybank": {
+"n": "Fidelity Bank",
+"r": null,
+"t": "2026-10-14"
 },
 "fidelitynationalfinancial": {
 "n": "Fidelity National Financial",
@@ -2373,6 +2463,14 @@
 "r": null,
 "t": "2026-10-11"
 },
+"galateaassociates": {
+"n": "Galatea Associates",
+"r": {
+"ats": "lever",
+"token": "galatea-associates"
+},
+"t": "2026-10-14"
+},
 "gallatinai": {
 "n": "Gallatin AI, Inc.",
 "r": null,
@@ -2413,6 +2511,11 @@
 "n": "GDIT",
 "r": null,
 "t": "2026-09-27"
+},
+"geiconsultants": {
+"n": "GEI Consultants",
+"r": null,
+"t": "2026-10-14"
 },
 "genalyte": {
 "n": "Genalyte",
@@ -2503,6 +2606,11 @@
 "r": null,
 "t": "2026-10-07"
 },
+"goodpower": {
+"n": "GoodPower",
+"r": null,
+"t": "2026-10-14"
+},
 "goodwillcentraltexas": {
 "n": "Goodwill Central Texas",
 "r": null,
@@ -2536,6 +2644,11 @@
 "r": null,
 "t": "2026-09-27"
 },
+"greystone": {
+"n": "Greystone",
+"r": null,
+"t": "2026-10-14"
+},
 "groq": {
 "n": "Groq",
 "r": null,
@@ -2553,6 +2666,14 @@
 "token": "groupon"
 },
 "t": "2026-09-27"
+},
+"gruve": {
+"n": "Gruve",
+"r": {
+"ats": "greenhouse",
+"token": "gruve"
+},
+"t": "2026-10-14"
 },
 "gsk": {
 "n": "GSK",
@@ -2714,6 +2835,11 @@
 "r": null,
 "t": "2026-09-27"
 },
+"hhglobal": {
+"n": "HH Global",
+"r": null,
+"t": "2026-10-14"
+},
 "hiddenlevel": {
 "n": "Hidden Level",
 "r": null,
@@ -2869,6 +2995,11 @@
 "r": null,
 "t": "2026-09-27"
 },
+"ideasrevenuesolutions": {
+"n": "IDeaS Revenue Solutions",
+"r": null,
+"t": "2026-10-14"
+},
 "idemia": {
 "n": "IDEMIA",
 "r": null,
@@ -3010,6 +3141,11 @@
 "n": "IntelliGenesis",
 "r": null,
 "t": "2026-09-27"
+},
+"interactivebrokers": {
+"n": "Interactive Brokers",
+"r": null,
+"t": "2026-10-14"
 },
 "intercontinentalexchange": {
 "n": "Intercontinental Exchange",
@@ -3354,6 +3490,11 @@
 },
 "t": "2026-09-27"
 },
+"koireader": {
+"n": "KoiReader",
+"r": null,
+"t": "2026-10-14"
+},
 "kooth": {
 "n": "Kooth",
 "r": null,
@@ -3404,6 +3545,11 @@
 "n": "Lawrence Berkeley National Laboratory",
 "r": null,
 "t": "2026-09-27"
+},
+"layupparts": {
+"n": "Layup Parts",
+"r": null,
+"t": "2026-10-14"
 },
 "leaderbank": {
 "n": "Leader Bank",
@@ -3506,6 +3652,11 @@
 "r": null,
 "t": "2026-09-27"
 },
+"louisianaeconomicdevelopment": {
+"n": "Louisiana Economic Development",
+"r": null,
+"t": "2026-10-14"
+},
 "lowescompanies": {
 "n": "Lowe's Companies, Inc.",
 "r": null,
@@ -3549,6 +3700,11 @@
 "n": "Lumion",
 "r": null,
 "t": "2026-09-30"
+},
+"lutron": {
+"n": "Lutron",
+"r": null,
+"t": "2026-10-14"
 },
 "lutronelectronics": {
 "n": "Lutron Electronics",
@@ -3634,6 +3790,11 @@
 "r": null,
 "t": "2026-09-27"
 },
+"matrixdesigngroup": {
+"n": "Matrix Design Group",
+"r": null,
+"t": "2026-10-14"
+},
 "matterport": {
 "n": "Matterport",
 "r": null,
@@ -3713,6 +3874,14 @@
 "r": null,
 "t": "2026-09-27"
 },
+"merciv": {
+"n": "Merciv",
+"r": {
+"ats": "ashby",
+"token": "merciv"
+},
+"t": "2026-10-14"
+},
 "mercuryinsurance": {
 "n": "Mercury Insurance",
 "r": {
@@ -3738,6 +3907,14 @@
 "token": "metecs"
 },
 "t": "2026-09-27"
+},
+"metergroup": {
+"n": "METER Group",
+"r": {
+"ats": "ashby",
+"token": "meter"
+},
+"t": "2026-10-14"
 },
 "metlife": {
 "n": "MetLife",
@@ -3894,10 +4071,20 @@
 },
 "t": "2026-09-27"
 },
+"monti": {
+"n": "Monti Inc",
+"r": null,
+"t": "2026-10-14"
+},
 "mood": {
 "n": "MOOD",
 "r": null,
 "t": "2026-10-11"
+},
+"moodys": {
+"n": "Moody's Corporation",
+"r": null,
+"t": "2026-10-14"
 },
 "motional": {
 "n": "Motional",
@@ -3934,6 +4121,11 @@
 "token": "muonspace"
 },
 "t": "2026-10-07"
+},
+"murphydoor": {
+"n": "Murphy Door",
+"r": null,
+"t": "2026-10-14"
 },
 "muru": {
 "n": "Muru",
@@ -4173,6 +4365,11 @@
 "r": null,
 "t": "2026-09-27"
 },
+"nsight": {
+"n": "Nsight",
+"r": null,
+"t": "2026-10-14"
+},
 "ntrepid": {
 "n": "Ntrepid Corporation",
 "r": null,
@@ -4233,6 +4430,11 @@
 "n": "Obsidian Solutions Group",
 "r": null,
 "t": "2026-09-27"
+},
+"oceaneering": {
+"n": "Oceaneering",
+"r": null,
+"t": "2026-10-14"
 },
 "octoformerlyconnexta": {
 "n": "Octo (formerly Connexta)",
@@ -4403,6 +4605,11 @@
 "r": null,
 "t": "2026-09-30"
 },
+"panasonicenergyofnorthamerica": {
+"n": "Panasonic Energy Corporation of North America",
+"r": null,
+"t": "2026-10-14"
+},
 "parallel": {
 "n": "Parallel",
 "r": {
@@ -4421,6 +4628,11 @@
 "r": null,
 "t": "2026-09-27"
 },
+"partnercoloradocreditunion": {
+"n": "Partner Colorado Credit Union",
+"r": null,
+"t": "2026-10-14"
+},
 "pathai": {
 "n": "PathAI",
 "r": {
@@ -4436,6 +4648,14 @@
 "token": "pathrobotics"
 },
 "t": "2026-09-27"
+},
+"pathstone": {
+"n": "PathStone",
+"r": {
+"ats": "greenhouse",
+"token": "pathstone"
+},
+"t": "2026-10-14"
 },
 "pavefinance": {
 "n": "Pave Finance",
@@ -4506,6 +4726,11 @@
 "r": null,
 "t": "2026-09-27"
 },
+"phillipsedison": {
+"n": "Phillips Edison & Company",
+"r": null,
+"t": "2026-10-14"
+},
 "physicalintelligence": {
 "n": "Physical Intelligence",
 "r": {
@@ -4573,6 +4798,11 @@
 "r": null,
 "t": "2026-09-30"
 },
+"pocstock": {
+"n": "pocstock",
+"r": null,
+"t": "2026-10-14"
+},
 "point": {
 "n": "Point",
 "r": {
@@ -4601,6 +4831,11 @@
 "n": "Post Holdings",
 "r": null,
 "t": "2026-09-30"
+},
+"power3solutions": {
+"n": "Power3 Solutions",
+"r": null,
+"t": "2026-10-14"
 },
 "powerschool": {
 "n": "PowerSchool",
@@ -5102,6 +5337,11 @@
 },
 "t": "2026-09-27"
 },
+"ryzoe": {
+"n": "Ryzoe",
+"r": null,
+"t": "2026-10-14"
+},
 "saalexsolutions": {
 "n": "Saalex Solutions",
 "r": null,
@@ -5217,6 +5457,11 @@
 },
 "t": "2026-09-27"
 },
+"schweitzerengineeringlaboratoriessel": {
+"n": "Schweitzer Engineering Laboratories (SEL)",
+"r": null,
+"t": "2026-10-14"
+},
 "scientificresearch": {
 "n": "Scientific Research Corporation",
 "r": null,
@@ -5244,6 +5489,19 @@
 "n": "SECUNETICS",
 "r": null,
 "t": "2026-10-04"
+},
+"secure": {
+"n": "SECURE",
+"r": {
+"ats": "greenhouse",
+"token": "secure"
+},
+"t": "2026-10-14"
+},
+"seerist": {
+"n": "Seerist",
+"r": null,
+"t": "2026-10-14"
 },
 "sentinel": {
 "n": "Sentinel Technologies",
@@ -5479,6 +5737,11 @@
 "r": null,
 "t": "2026-10-07"
 },
+"southwestairlinecareerpage": {
+"n": "Southwest Airline Career Page",
+"r": null,
+"t": "2026-10-14"
+},
 "southwire": {
 "n": "Southwire Company",
 "r": null,
@@ -5488,6 +5751,11 @@
 "n": "Space Dynamics Laboratory",
 "r": null,
 "t": "2026-09-27"
+},
+"spacetango": {
+"n": "Space Tango",
+"r": null,
+"t": "2026-10-14"
 },
 "spacexai": {
 "n": "SpaceXAI",
@@ -5577,6 +5845,11 @@
 "n": "Star Dental Partners",
 "r": null,
 "t": "2026-09-27"
+},
+"starkeymxico": {
+"n": "Starkey M\u00e9xico",
+"r": null,
+"t": "2026-10-14"
 },
 "starslingx25": {
 "n": "StarSling (X25)",
@@ -5746,6 +6019,11 @@
 },
 "t": "2026-09-27"
 },
+"talentpluto": {
+"n": "talentpluto",
+"r": null,
+"t": "2026-10-14"
+},
 "talkdesk": {
 "n": "Talkdesk",
 "r": {
@@ -5856,6 +6134,11 @@
 "r": null,
 "t": "2026-10-11"
 },
+"texasfarmbureau": {
+"n": "Texas Farm Bureau",
+"r": null,
+"t": "2026-10-14"
+},
 "texasfarmbureaucasualtyinsurance": {
 "n": "Texas Farm Bureau Casualty Insurance Company",
 "r": null,
@@ -5870,6 +6153,11 @@
 "n": "The Best Bees Company",
 "r": null,
 "t": "2026-09-30"
+},
+"thebuckle": {
+"n": "The Buckle, Inc.",
+"r": null,
+"t": "2026-10-14"
 },
 "thecary": {
 "n": "The Cary Company",
@@ -5890,6 +6178,11 @@
 "n": "The Friedkin Group",
 "r": null,
 "t": "2026-09-27"
+},
+"thegeogroup": {
+"n": "The GEO Group",
+"r": null,
+"t": "2026-10-14"
 },
 "thejointcommission": {
 "n": "The Joint Commission",
@@ -6103,6 +6396,11 @@
 "r": null,
 "t": "2026-09-27"
 },
+"trinitylifesciences": {
+"n": "Trinity Life Sciences",
+"r": null,
+"t": "2026-10-14"
+},
 "triplering": {
 "n": "TripleRing",
 "r": null,
@@ -6122,6 +6420,14 @@
 "n": "Trusted Concepts, Inc.",
 "r": null,
 "t": "2026-09-30"
+},
+"trustwill": {
+"n": "TrustWILL",
+"r": {
+"ats": "greenhouse",
+"token": "trustwill"
+},
+"t": "2026-10-14"
 },
 "tsmc": {
 "n": "TSMC",
@@ -6263,6 +6569,11 @@
 "r": null,
 "t": "2026-09-27"
 },
+"usp": {
+"n": "USP",
+"r": null,
+"t": "2026-10-14"
+},
 "uspharmacopeia": {
 "n": "US Pharmacopeia",
 "r": null,
@@ -6307,6 +6618,14 @@
 "n": "Valitana",
 "r": null,
 "t": "2026-09-27"
+},
+"valon": {
+"n": "Valon",
+"r": {
+"ats": "ashby",
+"token": "valon"
+},
+"t": "2026-10-14"
 },
 "vanguard": {
 "n": "Vanguard",
@@ -6430,6 +6749,11 @@
 },
 "t": "2026-09-27"
 },
+"vsolvit": {
+"n": "VSolvit",
+"r": null,
+"t": "2026-10-14"
+},
 "vtg": {
 "n": "VTG",
 "r": {
@@ -6506,6 +6830,11 @@
 "n": "Weights & Biases",
 "r": null,
 "t": "2026-09-27"
+},
+"wellmarkbluecrossandblueshield": {
+"n": "Wellmark Blue Cross and Blue Shield",
+"r": null,
+"t": "2026-10-14"
 },
 "welodata": {
 "n": "Welo Data",
@@ -6623,6 +6952,11 @@
 "r": null,
 "t": "2026-10-07"
 },
+"yorkspacesystems": {
+"n": "York Space Systems",
+"r": null,
+"t": "2026-10-14"
+},
 "zelis": {
 "n": "Zelis",
 "r": null,
@@ -6637,6 +6971,11 @@
 "n": "ZincFive",
 "r": null,
 "t": "2026-09-30"
+},
+"zionsbancorporation": {
+"n": "Zions Bancorporation",
+"r": null,
+"t": "2026-10-14"
 },
 "zionsbank": {
 "n": "Zions Bank",

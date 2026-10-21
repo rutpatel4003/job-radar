@@ -30,6 +30,14 @@
 },
 "t": "2026-09-30"
 },
+"abakaai": {
+"n": "Abaka AI",
+"r": {
+"ats": "ashby",
+"token": "abaka-ai"
+},
+"t": "2026-10-21"
+},
 "abcorp": {
 "n": "ABCorp",
 "r": null,
@@ -254,6 +262,11 @@
 "n": "Allen Lund Company",
 "r": null,
 "t": "2026-09-27"
+},
+"alllines": {
+"n": "All Lines Technology",
+"r": null,
+"t": "2026-10-21"
 },
 "alphaomega": {
 "n": "Alpha Omega",
@@ -648,6 +661,14 @@
 "r": null,
 "t": "2026-10-11"
 },
+"atlasair": {
+"n": "Atlas Air",
+"r": {
+"ats": "greenhouse",
+"token": "atlasair"
+},
+"t": "2026-10-21"
+},
 "atlassian": {
 "n": "Atlassian",
 "r": null,
@@ -673,6 +694,11 @@
 "r": null,
 "t": "2026-09-27"
 },
+"autochlorsystem": {
+"n": "Auto-Chlor System",
+"r": null,
+"t": "2026-10-21"
+},
 "automationanywhere": {
 "n": "Automation Anywhere",
 "r": null,
@@ -687,6 +713,16 @@
 "n": "Avalon",
 "r": null,
 "t": "2026-10-14"
+},
+"avaloreai": {
+"n": "Avalore.ai",
+"r": null,
+"t": "2026-10-21"
+},
+"avanza": {
+"n": "Avanza",
+"r": null,
+"t": "2026-10-21"
 },
 "avathon": {
 "n": "Avathon",
@@ -922,6 +958,14 @@
 "n": "Beyondsoft",
 "r": null,
 "t": "2026-09-27"
+},
+"biermanautismcenters": {
+"n": "Bierman Autism Centers",
+"r": {
+"ats": "greenhouse",
+"token": "biermanautismcenters"
+},
+"t": "2026-10-21"
 },
 "bigbearai": {
 "n": "Bigbear.ai",
@@ -1297,6 +1341,11 @@
 "r": null,
 "t": "2026-09-27"
 },
+"centrl": {
+"n": "CENTRL",
+"r": null,
+"t": "2026-10-21"
+},
 "centurylink": {
 "n": "CenturyLink",
 "r": null,
@@ -1426,6 +1475,11 @@
 "n": "Cleerly",
 "r": null,
 "t": "2026-09-27"
+},
+"clerie": {
+"n": "Clerie",
+"r": null,
+"t": "2026-10-21"
 },
 "clerkie": {
 "n": "Clerkie",
@@ -1606,6 +1660,14 @@
 "r": null,
 "t": "2026-09-27"
 },
+"conviva": {
+"n": "Conviva",
+"r": {
+"ats": "greenhouse",
+"token": "conviva"
+},
+"t": "2026-10-21"
+},
 "cookgroup": {
 "n": "Cook Group",
 "r": null,
@@ -1762,6 +1824,11 @@
 "r": null,
 "t": "2026-09-27"
 },
+"dassaultsystmes": {
+"n": "Dassault Syst\u00e8mes",
+"r": null,
+"t": "2026-10-21"
+},
 "databank": {
 "n": "DataBank",
 "r": null,
@@ -1882,6 +1949,11 @@
 "token": "dexterity"
 },
 "t": "2026-09-27"
+},
+"dialight": {
+"n": "Dialight",
+"r": null,
+"t": "2026-10-21"
 },
 "digicert": {
 "n": "DigiCert",
@@ -2244,6 +2316,11 @@
 "r": null,
 "t": "2026-09-27"
 },
+"espn": {
+"n": "ESPN",
+"r": null,
+"t": "2026-10-21"
+},
 "esri": {
 "n": "Esri",
 "r": {
@@ -2356,6 +2433,11 @@
 },
 "t": "2026-09-27"
 },
+"fevnorthamerica": {
+"n": "FEV North America, Inc.",
+"r": null,
+"t": "2026-10-21"
+},
 "fg": {
 "n": "F&G",
 "r": null,
@@ -2431,6 +2513,11 @@
 "n": "Flexential",
 "r": null,
 "t": "2026-09-30"
+},
+"flightsafetyinternational": {
+"n": "FlightSafety International",
+"r": null,
+"t": "2026-10-21"
 },
 "flix": {
 "n": "F\u00e9lix",
@@ -2599,6 +2686,11 @@
 "n": "Gatik",
 "r": null,
 "t": "2026-09-27"
+},
+"gbitglobalbridgeinfotech": {
+"n": "GBIT (Global Bridge InfoTech Inc)",
+"r": null,
+"t": "2026-10-21"
 },
 "gdit": {
 "n": "GDIT",
@@ -2826,6 +2918,11 @@
 "r": null,
 "t": "2026-09-27"
 },
+"happyreturnsaups": {
+"n": "Happy Returns, a UPS Company",
+"r": null,
+"t": "2026-10-21"
+},
 "harborfoods": {
 "n": "Harbor Foods",
 "r": null,
@@ -3034,6 +3131,14 @@
 "n": "Hugging Face",
 "r": null,
 "t": "2026-09-27"
+},
+"humaninterest": {
+"n": "Human Interest",
+"r": {
+"ats": "greenhouse",
+"token": "humaninterest"
+},
+"t": "2026-10-21"
 },
 "humanscale": {
 "n": "Humanscale",
@@ -3245,10 +3350,26 @@
 },
 "t": "2026-09-27"
 },
+"instalilyai": {
+"n": "InstaLILY AI",
+"r": {
+"ats": "greenhouse",
+"token": "instalilyai"
+},
+"t": "2026-10-21"
+},
 "integralfederal": {
 "n": "Integral Federal",
 "r": null,
 "t": "2026-10-11"
+},
+"integrate": {
+"n": "Integrate",
+"r": {
+"ats": "ashby",
+"token": "integrate"
+},
+"t": "2026-10-21"
 },
 "integratedsolutionsforsystemsis4s": {
 "n": "Integrated Solutions for Systems, Inc. (IS4S)",
@@ -3284,6 +3405,11 @@
 "n": "Intercontinental Exchange",
 "r": null,
 "t": "2026-09-27"
+},
+"intermiamicfandnustadium": {
+"n": "Inter Miami CF and Nu Stadium",
+"r": null,
+"t": "2026-10-21"
 },
 "internationaldataidc": {
 "n": "International Data Corporation - IDC",
@@ -3333,6 +3459,11 @@
 "r": null,
 "t": "2026-09-27"
 },
+"intuitive": {
+"n": "Intuitive",
+"r": null,
+"t": "2026-10-21"
+},
 "invisible": {
 "n": "Invisible Technologies",
 "r": {
@@ -3358,6 +3489,11 @@
 "n": "iPipeline",
 "r": null,
 "t": "2026-09-27"
+},
+"iridium": {
+"n": "Iridium",
+"r": null,
+"t": "2026-10-21"
 },
 "iridiumcommunications": {
 "n": "Iridium Communications",
@@ -3658,6 +3794,11 @@
 "r": null,
 "t": "2026-09-27"
 },
+"laansu": {
+"n": "Laansu",
+"r": null,
+"t": "2026-10-21"
+},
 "laansuincorporated": {
 "n": "Laansu Incorporated",
 "r": null,
@@ -3670,6 +3811,11 @@
 "token": "labelbox"
 },
 "t": "2026-09-27"
+},
+"laborie": {
+"n": "Laborie",
+"r": null,
+"t": "2026-10-21"
 },
 "laikastudios": {
 "n": "LAIKA Studios",
@@ -3703,6 +3849,11 @@
 "n": "Leader Bank",
 "r": null,
 "t": "2026-10-04"
+},
+"lear": {
+"n": "Lear",
+"r": null,
+"t": "2026-10-21"
 },
 "legalzoom": {
 "n": "LegalZoom",
@@ -3929,6 +4080,14 @@
 "n": "Manulife",
 "r": null,
 "t": "2026-10-07"
+},
+"mark43": {
+"n": "Mark43",
+"r": {
+"ats": "greenhouse",
+"token": "mark43"
+},
+"t": "2026-10-21"
 },
 "markemimaje": {
 "n": "Markem-Imaje",
@@ -4221,6 +4380,11 @@
 },
 "t": "2026-09-27"
 },
+"modernsolutionsmtsi": {
+"n": "Modern Technology Solutions, Inc. (MTSI)",
+"r": null,
+"t": "2026-10-21"
+},
 "modernwoodmenofamerica": {
 "n": "Modern Woodmen of America",
 "r": null,
@@ -4315,6 +4479,11 @@
 "r": null,
 "t": "2026-09-27"
 },
+"nasajetpropulsionlaboratory": {
+"n": "NASA Jet Propulsion Laboratory",
+"r": null,
+"t": "2026-10-21"
+},
 "nasco": {
 "n": "NASCO",
 "r": null,
@@ -4373,6 +4542,11 @@
 "n": "Nebo",
 "r": null,
 "t": "2026-09-27"
+},
+"netapp": {
+"n": "NetApp",
+"r": null,
+"t": "2026-10-21"
 },
 "newellbrands": {
 "n": "Newell Brands",
@@ -4473,6 +4647,14 @@
 "n": "NinjaOne",
 "r": null,
 "t": "2026-09-27"
+},
+"nintendo": {
+"n": "Nintendo",
+"r": {
+"ats": "greenhouse",
+"token": "nintendo"
+},
+"t": "2026-10-21"
 },
 "noblis": {
 "n": "Noblis",
@@ -4606,6 +4788,11 @@
 "r": null,
 "t": "2026-09-27"
 },
+"nycminsurance": {
+"n": "NYCM Insurance",
+"r": null,
+"t": "2026-10-21"
+},
 "observeai": {
 "n": "Observe.AI",
 "r": {
@@ -4724,6 +4911,11 @@
 "r": null,
 "t": "2026-09-27"
 },
+"osfhealthcare": {
+"n": "OSF HealthCare",
+"r": null,
+"t": "2026-10-21"
+},
 "otterai": {
 "n": "Otter.ai",
 "r": {
@@ -4739,6 +4931,11 @@
 "token": "otter"
 },
 "t": "2026-09-27"
+},
+"ottimate": {
+"n": "Ottimate",
+"r": null,
+"t": "2026-10-21"
 },
 "ouster": {
 "n": "Ouster",
@@ -4800,6 +4997,11 @@
 "n": "Panasonic Holdings",
 "r": null,
 "t": "2026-09-27"
+},
+"panasonicappliancesrefrigerationsystemsdemxicosadecv": {
+"n": "Panasonic Appliances Refrigeration Systems de M\u00e9xico S. A. de C. V.",
+"r": null,
+"t": "2026-10-21"
 },
 "panasonicavionics": {
 "n": "Panasonic Avionics Corporation",
@@ -5089,6 +5291,11 @@
 "r": null,
 "t": "2026-09-27"
 },
+"premiergloballinks": {
+"n": "Premier Global Links LLC",
+"r": null,
+"t": "2026-10-21"
+},
 "premierresearch": {
 "n": "Premier Research Labs",
 "r": null,
@@ -5338,6 +5545,14 @@
 "r": null,
 "t": "2026-10-04"
 },
+"reflex": {
+"n": "Reflex",
+"r": {
+"ats": "greenhouse",
+"token": "reflex"
+},
+"t": "2026-10-21"
+},
 "reisystems": {
 "n": "REI Systems",
 "r": null,
@@ -5576,6 +5791,11 @@
 "r": null,
 "t": "2026-09-27"
 },
+"safrandefensespace": {
+"n": "Safran Defense & Space, Inc.",
+"r": null,
+"t": "2026-10-21"
+},
 "sagesure": {
 "n": "SageSure",
 "r": {
@@ -5765,6 +5985,11 @@
 "r": null,
 "t": "2026-09-27"
 },
+"settlor": {
+"n": "Settlor",
+"r": null,
+"t": "2026-10-21"
+},
 "sev1tech": {
 "n": "Sev1Tech LLC",
 "r": null,
@@ -5795,6 +6020,14 @@
 "token": "shield"
 },
 "t": "2026-09-27"
+},
+"shieldconsultingsolutions": {
+"n": "Shield Consulting Solutions, Inc.",
+"r": {
+"ats": "greenhouse",
+"token": "shield"
+},
+"t": "2026-10-21"
 },
 "shopify": {
 "n": "Shopify",
@@ -6158,6 +6391,19 @@
 "r": null,
 "t": "2026-09-30"
 },
+"stonge": {
+"n": "St. Onge",
+"r": null,
+"t": "2026-10-21"
+},
+"storable": {
+"n": "Storable",
+"r": {
+"ats": "greenhouse",
+"token": "storable"
+},
+"t": "2026-10-21"
+},
 "storagesolutions": {
 "n": "Storage Solutions",
 "r": null,
@@ -6236,6 +6482,14 @@
 "n": "Swisslog",
 "r": null,
 "t": "2026-10-11"
+},
+"switchboard": {
+"n": "Switchboard",
+"r": {
+"ats": "ashby",
+"token": "switchboard"
+},
+"t": "2026-10-21"
 },
 "symbotic": {
 "n": "Symbotic",
@@ -6407,6 +6661,24 @@
 "n": "Textron",
 "r": null,
 "t": "2026-09-27"
+},
+"thalesdefensesecurity": {
+"n": "Thales Defense & Security, Inc.",
+"r": null,
+"t": "2026-10-21"
+},
+"thatch": {
+"n": "Thatch",
+"r": {
+"ats": "greenhouse",
+"token": "thatch"
+},
+"t": "2026-10-21"
+},
+"theamatriotgroup": {
+"n": "The Amatriot Group",
+"r": null,
+"t": "2026-10-21"
 },
 "thebestbees": {
 "n": "The Best Bees Company",
@@ -7056,6 +7328,11 @@
 "r": null,
 "t": "2026-09-27"
 },
+"vontier": {
+"n": "Vontier",
+"r": null,
+"t": "2026-10-21"
+},
 "voxel51": {
 "n": "Voxel51",
 "r": {
@@ -7155,6 +7432,11 @@
 "n": "WebMD",
 "r": null,
 "t": "2026-09-27"
+},
+"weenergies": {
+"n": "We Energies",
+"r": null,
+"t": "2026-10-21"
 },
 "weightsbiases": {
 "n": "Weights & Biases",
@@ -7286,6 +7568,14 @@
 "n": "York Space Systems",
 "r": null,
 "t": "2026-10-14"
+},
+"zeissgroup": {
+"n": "ZEISS Group",
+"r": {
+"ats": "lever",
+"token": "zeiss"
+},
+"t": "2026-10-21"
 },
 "zelis": {
 "n": "Zelis",

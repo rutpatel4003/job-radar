@@ -2555,6 +2555,7 @@
   "workday:zoom/zoom"
  ],
  "dead_boards": {
+  "ashby:abaka-ai": "2026-11-01",
   "ashby:amigo": "2026-10-03",
   "ashby:arch.co": "2026-10-30",
   "ashby:atomicsemi": "2026-09-26",

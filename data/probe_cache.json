@@ -311,6 +311,11 @@
 "r": null,
 "t": "2026-10-28"
 },
+"allerganaestheticsanabbvie": {
+"n": "Allergan Aesthetics, an AbbVie Company",
+"r": null,
+"t": "2026-11-04"
+},
 "alliedworld": {
 "n": "Allied World",
 "r": null,
@@ -510,6 +515,11 @@
 "r": null,
 "t": "2026-10-25"
 },
+"andromedasystemsincorporated": {
+"n": "Andromeda Systems Incorporated",
+"r": null,
+"t": "2026-11-04"
+},
 "andurilindustries": {
 "n": "Anduril Industries",
 "r": {
@@ -662,6 +672,11 @@
 "n": "Arrow International",
 "r": null,
 "t": "2026-10-28"
+},
+"arrowstreetcapitallimitedpartnership": {
+"n": "Arrowstreet Capital, Limited Partnership",
+"r": null,
+"t": "2026-11-04"
 },
 "artisanpartners": {
 "n": "Artisan Partners",
@@ -933,6 +948,11 @@
 "n": "Axway",
 "r": null,
 "t": "2026-10-28"
+},
+"ayar": {
+"n": "Ayar Labs",
+"r": null,
+"t": "2026-11-04"
 },
 "b4corp": {
 "n": "B4Corp",
@@ -1219,6 +1239,11 @@
 "r": null,
 "t": "2026-10-28"
 },
+"borgwarner": {
+"n": "BorgWarner",
+"r": null,
+"t": "2026-11-04"
+},
 "bosch": {
 "n": "Bosch",
 "r": null,
@@ -1330,10 +1355,20 @@
 "r": null,
 "t": "2026-10-04"
 },
+"businessrate": {
+"n": "BusinessRate",
+"r": null,
+"t": "2026-11-04"
+},
+"bwellconnectedhealth": {
+"n": "b.well Connected Health",
+"r": null,
+"t": "2026-11-04"
+},
 "bylight": {
 "n": "By Light",
 "r": null,
-"t": "2026-10-04"
+"t": "2026-11-04"
 },
 "bylightprofessionalitservices": {
 "n": "By Light Professional IT Services",
@@ -1616,9 +1651,9 @@
 "t": "2026-09-27"
 },
 "cincinnatichildrens": {
-"n": "Cincinnati Children's",
+"n": "Cincinnati Children\u2019s",
 "r": null,
-"t": "2026-10-04"
+"t": "2026-11-04"
 },
 "cincinnatifinancial": {
 "n": "Cincinnati Financial",
@@ -1804,6 +1839,11 @@
 "r": null,
 "t": "2026-10-11"
 },
+"columbiapartners": {
+"n": "Columbia Technology Partners",
+"r": null,
+"t": "2026-11-04"
+},
 "commercialmetals": {
 "n": "Commercial Metals",
 "r": null,
@@ -1843,6 +1883,11 @@
 "n": "CONFLUX SYSTEMS",
 "r": null,
 "t": "2026-10-11"
+},
+"consolidatedchassismanagementccm": {
+"n": "Consolidated Chassis Management, LLC (\"CCM\"\u200b)",
+"r": null,
+"t": "2026-11-04"
 },
 "constellationenergy": {
 "n": "Constellation Energy",
@@ -1893,7 +1938,7 @@
 "cookmedical": {
 "n": "Cook Medical",
 "r": null,
-"t": "2026-10-04"
+"t": "2026-11-04"
 },
 "cookunity": {
 "n": "CookUnity",
@@ -1919,7 +1964,7 @@
 "corgan": {
 "n": "Corgan",
 "r": null,
-"t": "2026-10-04"
+"t": "2026-11-04"
 },
 "corgi": {
 "n": "Corgi",
@@ -1943,6 +1988,11 @@
 "n": "Cortrucent Security",
 "r": null,
 "t": "2026-10-28"
+},
+"costco": {
+"n": "Costco",
+"r": null,
+"t": "2026-11-04"
 },
 "cotiviti": {
 "n": "Cotiviti",
@@ -1993,7 +2043,7 @@
 "ctcgroup": {
 "n": "CTC Group",
 "r": null,
-"t": "2026-10-04"
+"t": "2026-11-04"
 },
 "ctg": {
 "n": "CTG",
@@ -2156,6 +2206,11 @@
 "r": null,
 "t": "2026-10-04"
 },
+"dentsu": {
+"n": "dentsu",
+"r": null,
+"t": "2026-11-04"
+},
 "deshaw": {
 "n": "D. E. Shaw",
 "r": null,
@@ -2178,6 +2233,11 @@
 "n": "Dewberry",
 "r": null,
 "t": "2026-10-28"
+},
+"dexiangovernmentsolutions": {
+"n": "Dexian Government Solutions",
+"r": null,
+"t": "2026-11-04"
 },
 "dexterity": {
 "n": "Dexterity",
@@ -2209,6 +2269,11 @@
 "n": "Digital Factory, Inc.",
 "r": null,
 "t": "2026-10-11"
+},
+"digitalforce": {
+"n": "Digital Force Technologies",
+"r": null,
+"t": "2026-11-04"
 },
 "digitalfoundry": {
 "n": "Digital Foundry, Inc.",
@@ -2584,6 +2649,11 @@
 "r": null,
 "t": "2026-10-28"
 },
+"erieinsurancegroup": {
+"n": "Erie Insurance Group",
+"r": null,
+"t": "2026-11-04"
+},
 "ernstyoung": {
 "n": "Ernst & Young",
 "r": null,
@@ -2706,7 +2776,7 @@
 "fcindustries": {
 "n": "FC Industries",
 "r": null,
-"t": "2026-10-04"
+"t": "2026-11-04"
 },
 "federalreserveboard": {
 "n": "Federal Reserve Board",
@@ -2904,9 +2974,9 @@
 "t": "2026-10-28"
 },
 "frontier": {
-"n": "FRONTIER TECHNOLOGY",
+"n": "Frontier Technology",
 "r": null,
-"t": "2026-10-04"
+"t": "2026-11-04"
 },
 "fujifilm": {
 "n": "Fujifilm",
@@ -3242,7 +3312,7 @@
 "hakkdaanibm": {
 "n": "Hakk\u014dda, an IBM Company",
 "r": null,
-"t": "2026-09-27"
+"t": "2026-11-04"
 },
 "halliburton": {
 "n": "Halliburton",
@@ -3465,9 +3535,12 @@
 "t": "2026-09-27"
 },
 "hp": {
-"n": "HP Inc",
-"r": null,
-"t": "2026-09-27"
+"n": "HP",
+"r": {
+"ats": "greenhouse",
+"token": "hp"
+},
+"t": "2026-11-04"
 },
 "hpe": {
 "n": "HPE",
@@ -3558,7 +3631,7 @@
 "icapital": {
 "n": "iCapital",
 "r": null,
-"t": "2026-10-04"
+"t": "2026-11-04"
 },
 "icatalyst": {
 "n": "iCatalyst, Inc.",
@@ -3600,6 +3673,11 @@
 "r": null,
 "t": "2026-10-04"
 },
+"igsenergy": {
+"n": "IGS Energy",
+"r": null,
+"t": "2026-11-04"
+},
 "illinoistoolworks": {
 "n": "Illinois Tool Works",
 "r": null,
@@ -3609,6 +3687,11 @@
 "n": "IMA Financial Group",
 "r": null,
 "t": "2026-10-28"
+},
+"imagen": {
+"n": "Imagen Technologies",
+"r": null,
+"t": "2026-11-04"
 },
 "imagetrend": {
 "n": "ImageTrend",
@@ -3652,7 +3735,7 @@
 "incommpayments": {
 "n": "InComm Payments",
 "r": null,
-"t": "2026-10-04"
+"t": "2026-11-04"
 },
 "independentsoftware": {
 "n": "Independent Software",
@@ -3702,7 +3785,7 @@
 "innovativedefense": {
 "n": "Innovative Defense Technologies",
 "r": null,
-"t": "2026-10-04"
+"t": "2026-11-04"
 },
 "innovativedefenseidt": {
 "n": "Innovative Defense Technologies (IDT)",
@@ -3784,9 +3867,9 @@
 "t": "2026-10-28"
 },
 "intelliforceitsolutionsgroup": {
-"n": "Intelliforce-IT Solutions Group",
+"n": "Intelliforce-IT Solutions Group, LLC.",
 "r": null,
-"t": "2026-10-04"
+"t": "2026-11-04"
 },
 "intelligenesis": {
 "n": "IntelliGenesis",
@@ -3968,7 +4051,7 @@
 "itt": {
 "n": "ITT",
 "r": null,
-"t": "2026-10-04"
+"t": "2026-11-04"
 },
 "ixllearning": {
 "n": "IXL Learning",
@@ -4127,6 +4210,14 @@
 "n": "Kearney",
 "r": null,
 "t": "2026-10-28"
+},
+"keenfootwear": {
+"n": "KEEN Footwear",
+"r": {
+"ats": "greenhouse",
+"token": "keenfootwear"
+},
+"t": "2026-11-04"
 },
 "kellyocg": {
 "n": "KellyOCG",
@@ -4695,6 +4786,11 @@
 },
 "t": "2026-09-27"
 },
+"merrick": {
+"n": "Merrick & Company",
+"r": null,
+"t": "2026-11-04"
+},
 "mesoscalediagnostics": {
 "n": "MESO SCALE DIAGNOSTICS, LLC.",
 "r": null,
@@ -4748,6 +4844,11 @@
 "n": "[Metropolitan Transportation Authority](https:/mta.info/)",
 "r": null,
 "t": "2026-10-28"
+},
+"metrosales": {
+"n": "Metro Sales Inc.",
+"r": null,
+"t": "2026-11-04"
 },
 "metrostar": {
 "n": "MetroStar",
@@ -4932,7 +5033,7 @@
 "motorolasolutions": {
 "n": "Motorola Solutions",
 "r": null,
-"t": "2026-10-04"
+"t": "2026-11-04"
 },
 "mozilla": {
 "n": "Mozilla",
@@ -5376,7 +5477,7 @@
 "odysseyspaceresearch": {
 "n": "Odyssey Space Research, LLC",
 "r": null,
-"t": "2026-10-04"
+"t": "2026-11-04"
 },
 "odysseysystems": {
 "n": "Odyssey Systems",
@@ -5425,7 +5526,7 @@
 "omegahires": {
 "n": "OmegaHires",
 "r": null,
-"t": "2026-10-04"
+"t": "2026-11-04"
 },
 "omniapartners": {
 "n": "OMNIA Partners",
@@ -5687,7 +5788,7 @@
 "pge": {
 "n": "PG&E",
 "r": null,
-"t": "2026-10-04"
+"t": "2026-11-04"
 },
 "phase2": {
 "n": "Phase 2",
@@ -6155,6 +6256,11 @@
 "r": null,
 "t": "2026-10-18"
 },
+"redalpha": {
+"n": "Red Alpha",
+"r": null,
+"t": "2026-11-04"
+},
 "redcarrot": {
 "n": "Red Carrot",
 "r": null,
@@ -6237,6 +6343,11 @@
 "token": "replit"
 },
 "t": "2026-09-27"
+},
+"reqpedia": {
+"n": "Reqpedia",
+"r": null,
+"t": "2026-11-04"
 },
 "resonetics": {
 "n": "Resonetics",
@@ -6386,6 +6497,11 @@
 "r": null,
 "t": "2026-09-27"
 },
+"rothera": {
+"n": "Rothera",
+"r": null,
+"t": "2026-11-04"
+},
 "rover": {
 "n": "Rover",
 "r": {
@@ -6402,7 +6518,7 @@
 "rovisys": {
 "n": "RoviSys",
 "r": null,
-"t": "2026-10-04"
+"t": "2026-11-04"
 },
 "rovisysfederalsolutionswwwrovifedcom": {
 "n": "[RoviSys Federal Solutions](www.rovifed.com)",
@@ -6449,6 +6565,11 @@
 "n": "Saalex Solutions",
 "r": null,
 "t": "2026-09-30"
+},
+"saalexsolutionsasaalex": {
+"n": "Saalex Solutions - A Saalex Company",
+"r": null,
+"t": "2026-11-04"
 },
 "sabresystems": {
 "n": "Sabre Systems",
@@ -6520,7 +6641,7 @@
 "sandialaboratoryfederalcreditunion": {
 "n": "Sandia Laboratory Federal Credit Union",
 "r": null,
-"t": "2026-10-04"
+"t": "2026-11-04"
 },
 "sandiegobloodbank": {
 "n": "San Diego Blood Bank",
@@ -6540,7 +6661,7 @@
 "sarnova": {
 "n": "Sarnova",
 "r": null,
-"t": "2026-10-04"
+"t": "2026-11-04"
 },
 "sas": {
 "n": "SAS",
@@ -6585,6 +6706,11 @@
 "r": null,
 "t": "2026-10-28"
 },
+"scotforge": {
+"n": "Scot Forge",
+"r": null,
+"t": "2026-11-04"
+},
 "scoutbetter": {
 "n": "ScoutBetter",
 "r": null,
@@ -6620,6 +6746,11 @@
 "n": "Seerist",
 "r": null,
 "t": "2026-10-14"
+},
+"sentientdigital": {
+"n": "Sentient Digital, Inc.",
+"r": null,
+"t": "2026-11-04"
 },
 "sentinel": {
 "n": "Sentinel Technologies",
@@ -6686,6 +6817,14 @@
 "n": "Shawmut Design and Construction",
 "r": null,
 "t": "2026-09-27"
+},
+"shield": {
+"n": "Shield",
+"r": {
+"ats": "greenhouse",
+"token": "shield"
+},
+"t": "2026-11-04"
 },
 "shieldai": {
 "n": "Shield AI",
@@ -7111,6 +7250,11 @@
 },
 "t": "2026-09-27"
 },
+"steris": {
+"n": "STERIS",
+"r": null,
+"t": "2026-11-04"
+},
 "stevenscapitalmanagement": {
 "n": "Steven's Capital Management",
 "r": null,
@@ -7171,6 +7315,11 @@
 "n": "Study.com",
 "r": null,
 "t": "2026-10-28"
+},
+"stuller": {
+"n": "Stuller",
+"r": null,
+"t": "2026-11-04"
 },
 "stx": {
 "n": "STX",
@@ -7509,7 +7658,7 @@
 "theswiftgroup": {
 "n": "The Swift Group, LLC",
 "r": null,
-"t": "2026-10-04"
+"t": "2026-11-04"
 },
 "thetatitlek": {
 "n": "The Tatitlek Corporation",
@@ -7619,6 +7768,11 @@
 "r": null,
 "t": "2026-10-11"
 },
+"toshibabusiness": {
+"n": "Toshiba Business",
+"r": null,
+"t": "2026-11-04"
+},
 "totalexpert": {
 "n": "Total Expert",
 "r": {
@@ -7703,6 +7857,11 @@
 "r": null,
 "t": "2026-11-01"
 },
+"trexquantinvestmentlp": {
+"n": "Trexquant Investment LP",
+"r": null,
+"t": "2026-11-04"
+},
 "trexsolutions": {
 "n": "T-Rex Solutions",
 "r": {
@@ -7772,7 +7931,7 @@
 "tsmc": {
 "n": "TSMC",
 "r": null,
-"t": "2026-10-04"
+"t": "2026-11-04"
 },
 "tspi": {
 "n": "TSPi",
@@ -8113,7 +8272,7 @@
 "verizon": {
 "n": "Verizon",
 "r": null,
-"t": "2026-09-27"
+"t": "2026-11-04"
 },
 "vertexpharmaceuticals": {
 "n": "Vertex Pharmaceuticals",
@@ -8380,7 +8539,7 @@
 "witrongroup": {
 "n": "WITRON Group",
 "r": null,
-"t": "2026-09-27"
+"t": "2026-11-04"
 },
 "wolverinetrading": {
 "n": "Wolverine Trading",
@@ -8400,7 +8559,7 @@
 "woodmenlife": {
 "n": "WoodmenLife",
 "r": null,
-"t": "2026-10-04"
+"t": "2026-11-04"
 },
 "workday": {
 "n": "Workday Inc",
